@@ -4,8 +4,8 @@
 # Bindings for application-specific groups with more restrictive access.
 # These users only have access to data within their specific application.
 #
-# Security Context Pattern: BU-STAGE-APPLICATION-COMPONENT
-# Application users access: BU-*-APPLICATION-* (all stages within application)
+# Security Context Pattern: bu-stage-application-component (LOWERCASE)
+# Application users access: bu-*-application-* (all stages within application)
 # ============================================================================
 
 # ------------------------------------------------------------------------------
@@ -27,12 +27,13 @@ resource "dynatrace_iam_policy_bindings_v2" "application_admins_data" {
 
   # Scoped data read using templated policy
   # Parameter uses BU- prefix but boundary restricts to specific application
+  # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
     boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
     parameters = {
       # Using BU prefix in parameter, boundary further restricts to application
-      "security_context_prefix" = "${each.value.bu}-"
+      "security_context_prefix" = lower("${each.value.bu}-")
     }
   }
 
@@ -56,11 +57,12 @@ resource "dynatrace_iam_policy_bindings_v2" "application_admins_settings" {
   account = var.account_id
 
   # Scoped settings write - can modify settings for entities in their application
+  # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_settings_write.id
     boundaries = [dynatrace_iam_policy_boundary.application_settings_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.value.bu}-"
+      "security_context_prefix" = lower("${each.value.bu}-")
     }
   }
 
@@ -92,11 +94,12 @@ resource "dynatrace_iam_policy_bindings_v2" "application_users_data" {
   }
 
   # Scoped data read using templated policy with application boundary
+  # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
     boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.value.bu}-"
+      "security_context_prefix" = lower("${each.value.bu}-")
     }
   }
 
@@ -111,7 +114,7 @@ resource "dynatrace_iam_policy_bindings_v2" "application_users_data" {
     id         = dynatrace_iam_policy.scoped_settings_read.id
     boundaries = [dynatrace_iam_policy_boundary.application_settings_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.value.bu}-"
+      "security_context_prefix" = lower("${each.value.bu}-")
     }
   }
 }

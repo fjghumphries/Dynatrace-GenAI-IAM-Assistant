@@ -35,11 +35,12 @@ resource "dynatrace_iam_policy_bindings_v2" "bu_admins_data" {
   }
 
   # Scoped data read using templated policy with BU prefix parameter
+  # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
     boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.key}-"
+      "security_context_prefix" = lower("${each.key}-")
     }
   }
 
@@ -63,11 +64,12 @@ resource "dynatrace_iam_policy_bindings_v2" "bu_admins_settings" {
   account = var.account_id
 
   # Scoped settings write using templated policy
+  # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_settings_write.id
     boundaries = [dynatrace_iam_policy_boundary.bu_settings_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.key}-"
+      "security_context_prefix" = lower("${each.key}-")
     }
   }
 
@@ -94,11 +96,12 @@ resource "dynatrace_iam_policy_bindings_v2" "bu_users_data" {
   }
 
   # Scoped data read using templated policy with BU prefix parameter
+  # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
     boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.key}-"
+      "security_context_prefix" = lower("${each.key}-")
     }
   }
 
@@ -113,7 +116,7 @@ resource "dynatrace_iam_policy_bindings_v2" "bu_users_data" {
     id         = dynatrace_iam_policy.scoped_settings_read.id
     boundaries = [dynatrace_iam_policy_boundary.bu_settings_boundary[each.key].id]
     parameters = {
-      "security_context_prefix" = "${each.key}-"
+      "security_context_prefix" = lower("${each.key}-")
     }
   }
 }

@@ -108,7 +108,7 @@ Application-to-BU mapping:
   - POS01 → RETAIL
 ```
 
-> **Rules:** Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier (e.g. `BU1-PETCLINIC`, `BU2-PETCLINIC`).
+> **Rules:** Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier (e.g. `bu1-petclinic`, `bu2-petclinic`).
 
 ### Step 2 — Ask Copilot to Generate
 

@@ -24,8 +24,8 @@
 # Parameters:
 #   - security_context_prefix: The dt.security_context prefix to match
 #
-# Example binding: security_context_prefix = "BU1-" for all BU1 data
-# Example binding: security_context_prefix = "BU1-PROD-PETCLINIC01" for specific scope
+# Example binding: security_context_prefix = "bu1-" for all bu1 data
+# Example binding: security_context_prefix = "bu1-prod-petclinic01" for specific scope
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_policy" "scoped_data_read" {

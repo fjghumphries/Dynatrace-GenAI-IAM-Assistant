@@ -2,8 +2,12 @@
 # Variables Configuration
 # ============================================================================
 # This file defines all variables used across the IAM configuration.
-# Security context format: BU-STAGE-APPLICATION-COMPONENT
-# Example: BU1-PROD-PETCLINIC01-API
+# Security context format: bu-stage-application-component (LOWERCASE)
+# Example: bu1-prod-petclinic01-api
+#
+# NOTE: All values are lowercase to match Grail bucket naming requirements.
+# The lower() function is retained as a safety net in boundaries and bindings.
+# All variable keys and values should be defined lowercase at source.
 # ============================================================================
 
 # ------------------------------------------------------------------------------
@@ -31,15 +35,15 @@ variable "business_units" {
     applications = list(string)
   }))
   default = {
-    "BU1" = {
-      name         = "BU1"
+    "bu1" = {
+      name         = "bu1"
       description  = "Business Unit 1"
-      applications = ["PETCLINIC01"]
+      applications = ["petclinic01"]
     }
-    "BU2" = {
-      name         = "BU2"
+    "bu2" = {
+      name         = "bu2"
       description  = "Business Unit 2"
-      applications = ["PETCLINIC02"]
+      applications = ["petclinic02"]
     }
   }
 }
@@ -58,19 +62,20 @@ variable "applications" {
   }))
   # Each application belongs to exactly one BU, so no BU prefix needed in keys.
   # The 'name' field is the actual application identifier used in security contexts.
-  # Security context format: {BU}-{STAGE}-{name}  e.g. BU1-PROD-PETCLINIC01
+  # Security context format: {bu}-{stage}-{name}  e.g. bu1-prod-petclinic01
+  # Note: lower() is kept as a safety net in boundaries/bindings.
   default = {
-    "PETCLINIC01" = {
-      name        = "PETCLINIC01"
-      description = "PetClinic 01 - belongs to BU1"
-      bu          = "BU1"
-      stages      = ["PROD", "DEV"]
+    "petclinic01" = {
+      name        = "petclinic01"
+      description = "PetClinic 01 - belongs to bu1"
+      bu          = "bu1"
+      stages      = ["prod", "dev"]
     }
-    "PETCLINIC02" = {
-      name        = "PETCLINIC02"
-      description = "PetClinic 02 - belongs to BU2"
-      bu          = "BU2"
-      stages      = ["PROD", "DEV"]
+    "petclinic02" = {
+      name        = "petclinic02"
+      description = "PetClinic 02 - belongs to bu2"
+      bu          = "bu2"
+      stages      = ["prod", "dev"]
     }
   }
 }
@@ -81,7 +86,7 @@ variable "applications" {
 variable "stages" {
   description = "List of deployment stages"
   type        = list(string)
-  default     = ["PROD", "DEV"]  # TEST not used yet; add when needed
+  default     = ["prod", "dev"]  # test not used yet; add when needed
 }
 
 # ------------------------------------------------------------------------------

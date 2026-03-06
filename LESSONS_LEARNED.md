@@ -539,3 +539,34 @@ The `Admin Features (No Settings Write)` custom policy originally included `hub:
 
 ### Key Takeaway
 Always validate permission identifiers against the IAM API before adding them to policies. The existence of a feature in the Dynatrace UI does not guarantee a corresponding IAM permission identifier exists. Use the validation endpoint to test before committing to Terraform.
+
+---
+
+## 18. All IAM Values Must Be Lowercase (Bucket Names, Tags, Keys, Stages)
+
+### Discovery
+Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, and primary_tags, host_group, and other fields should be consistent, ALL IAM-related values must be lowercase throughout the configuration.
+
+### Problem
+Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, all security context values used in IAM boundaries and binding parameters must also be lowercase. Additionally, primary_tags keys, host_group values, variable keys, and stage names should all be lowercase for consistency and to avoid case-mismatch issues.
+
+### Solution
+All variable keys and values are defined in lowercase directly:
+
+- **Variable keys**: `"bu1"`, `"petclinic01"` (not `"BU1"`, `"PETCLINIC01"`)
+- **Variable values**: `name = "bu1"`, `bu = "bu1"`, `stages = ["prod", "dev"]`
+- **Primary tag keys**: `primary_tags.bu` (not `primary_tags.BU`)
+- **Host group values**: lowercase throughout
+- **Security context format**: `bu1-prod-petclinic01-api` (all lowercase)
+
+Terraform's `lower()` function is retained in boundaries and bindings as a safety net, but with all-lowercase keys it is effectively a no-op:
+
+- **Boundaries**: `lower(each.key)` — safety net
+- **Binding parameters**: `lower("${each.key}-")` — safety net
+
+Group names derive from the lowercase keys:
+- Group name: `bu1-Admins`, `petclinic01-Users`
+- Security context prefix: `bu1-`
+
+### Key Takeaway
+Define ALL values lowercase at the source (variable keys, stage names, tag keys, etc.) rather than relying solely on runtime conversion. Keep `lower()` as a defensive measure but do not depend on it as the primary mechanism. This ensures consistency across group names, bucket names, IAM conditions, and documentation.

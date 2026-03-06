@@ -46,7 +46,8 @@ When asked to generate a Terraform IAM configuration:
 
 - **Provider**: dynatrace-oss/dynatrace ~> 1.91
 - **IAM model**: Grail 3rd Gen only — no Management Zones, no `environment:roles:*`
-- **Security context format**: `BU-STAGE-APPLICATION-COMPONENT` (e.g. `BU1-PROD-PETCLINIC01-API`)
+- **Security context format**: `bu-stage-application-component` (lowercase, e.g. `bu1-prod-petclinic01-api`)
+- **Bucket names must be lowercase**: `lower()` is used in Terraform boundaries/bindings to enforce this
 - **IAM is additive**: permissions compound across bindings. Standard User grants unconditional `settings:objects:read` — settings read cannot be scoped via boundaries, only write can.
 - **Generated files** (inside `outputs/`):
   - `variables.tf` — BUs, applications, stages definitions

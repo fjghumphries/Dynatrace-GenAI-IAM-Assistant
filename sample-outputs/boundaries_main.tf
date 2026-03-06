@@ -5,8 +5,11 @@
 # They restrict access based on dt.security_context field using startsWith()
 # for hierarchical scoping as per the governance rules.
 #
-# Security Context Format: BU-STAGE-APPLICATION-COMPONENT
-# Example: BU1-PROD-PETCLINIC01-API
+# Security Context Format: bu-stage-application-component (LOWERCASE)
+# Example: bu1-prod-petclinic01-api
+#
+# NOTE: Grail bucket names must be lowercase. Since dt.security_context maps
+# to bucket names, lower() is used throughout to ensure all values are lowercase.
 #
 # IMPORTANT:
 # - Boundaries don't support AND operator - each line is a separate condition
@@ -28,7 +31,8 @@ resource "dynatrace_iam_policy_boundary" "bu_boundary" {
 
   # Boundary query restricts to all data where security_context starts with BU name
   # This captures all stages, applications, and components within the BU
-  query = "storage:dt.security_context startsWith \"${each.key}-\";"
+  # lower() ensures bucket names are always lowercase
+  query = "storage:dt.security_context startsWith \"${lower(each.key)}-\";"
 }
 
 # ------------------------------------------------------------------------------
@@ -43,12 +47,13 @@ resource "dynatrace_iam_policy_boundary" "application_boundary" {
   name = "Boundary-${each.key}"
 
   # Match all stages within this application for this BU
-  # Format: BU-*-APPLICATION to capture PROD, DEV, TEST etc.
+  # Format: bu-stage-application to capture prod, dev, test etc.
   # Using multiple lines for each stage since we can't use AND
+  # lower() ensures bucket names are always lowercase
   query = <<-EOT
-storage:dt.security_context startsWith "${each.value.bu}-PROD-${each.key}";
-storage:dt.security_context startsWith "${each.value.bu}-DEV-${each.key}";
-storage:dt.security_context startsWith "${each.value.bu}-TEST-${each.key}";
+storage:dt.security_context startsWith "${lower(each.value.bu)}-prod-${lower(each.key)}";
+storage:dt.security_context startsWith "${lower(each.value.bu)}-dev-${lower(each.key)}";
+storage:dt.security_context startsWith "${lower(each.value.bu)}-test-${lower(each.key)}";
 EOT
 }
 
@@ -65,10 +70,11 @@ resource "dynatrace_iam_policy_boundary" "application_settings_boundary" {
 
   # Settings boundary for entities with this security context
   # Note: This applies only to settings on entities that have security context
+  # lower() ensures bucket names are always lowercase
   query = <<-EOT
-settings:dt.security_context startsWith "${each.value.bu}-PROD-${each.key}";
-settings:dt.security_context startsWith "${each.value.bu}-DEV-${each.key}";
-settings:dt.security_context startsWith "${each.value.bu}-TEST-${each.key}";
+settings:dt.security_context startsWith "${lower(each.value.bu)}-prod-${lower(each.key)}";
+settings:dt.security_context startsWith "${lower(each.value.bu)}-dev-${lower(each.key)}";
+settings:dt.security_context startsWith "${lower(each.value.bu)}-test-${lower(each.key)}";
 EOT
 }
 
@@ -83,5 +89,6 @@ resource "dynatrace_iam_policy_boundary" "bu_settings_boundary" {
   name = "Boundary-${each.key}-Settings"
 
   # Settings boundary for all entities within the BU
-  query = "settings:dt.security_context startsWith \"${each.key}-\";"
+  # lower() ensures bucket names are always lowercase
+  query = "settings:dt.security_context startsWith \"${lower(each.key)}-\";"
 }

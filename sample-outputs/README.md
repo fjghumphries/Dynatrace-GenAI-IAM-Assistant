@@ -9,24 +9,26 @@ This repository contains Terraform configurations for managing Dynatrace Identit
 All IAM enforcement uses the `dt.security_context` field with the format:
 
 ```
-BU-STAGE-APPLICATION-COMPONENT
+bu-stage-application-component
 ```
 
 Examples:
-- `BU1-PROD-PETCLINIC01-API`
-- `BU2-PROD-PETCLINIC02-WEB`
+- `bu1-prod-petclinic01-api`
+- `bu2-prod-petclinic02-web`
+
+> **Note**: Bucket names in Grail must be lowercase. The `lower()` function is used in Terraform boundaries/bindings to ensure all security context values are lowercase.
 
 ### Access Control Hierarchy
 
 ```
 Account Level
 ├── BU-Level Groups
-│   ├── {BU}-Admins          → Full access to all BU data and settings
-│   └── {BU}-Users           → Read access to all BU data
+│   ├── {bu}-Admins          → Full access to all BU data and settings
+│   └── {bu}-Users           → Read access to all BU data
 │
 └── Application-Level Groups
-    ├── {Application}-Admins → Read data + write settings for application
-    └── {Application}-Users  → Read-only access to application data
+    ├── {application}-Admins → Read data + write settings for application
+    └── {application}-Users  → Read-only access to application data
 ```
 
 ## Files Structure
@@ -99,7 +101,7 @@ terraform apply
 
 Boundaries decouple permissions (the "What") from scope (the "Where"). They contain conditions that restrict access based on security_context:
 
-- **BU Boundaries**: `storage:dt.security_context startsWith "BU1-";`
+- **BU Boundaries**: `storage:dt.security_context startsWith "bu1-";`
 - **Application Boundaries**: Include all stages within an application
 
 ### Templated Policies
@@ -139,10 +141,10 @@ Add to `variables.tf` or `terraform.tfvars`:
 
 ```hcl
 business_units = {
-  "BU3" = {
-    name         = "BU3"
+  "bu3" = {
+    name         = "bu3"
     description  = "New Business Unit"
-    applications = ["APP_E", "APP_F"]
+    applications = ["app_e", "app_f"]
   }
 }
 ```
@@ -151,17 +153,17 @@ business_units = {
 
 ```hcl
 applications = {
-  "PETCLINIC03" = {
-    name        = "PETCLINIC03"
-    description = "PetClinic 03 - BU1"
-    bu          = "BU1"
-    stages      = ["PROD", "DEV"]
+  "petclinic03" = {
+    name        = "petclinic03"
+    description = "PetClinic 03 - bu1"
+    bu          = "bu1"
+    stages      = ["prod", "dev"]
   }
 }
 ```
 
 > **Note**: Application map keys must be unique. If an application name is shared across BUs,
-> prefix the key with the BU (e.g. `BU1_APPNAME`). The `name` field drives the security context.
+> prefix the key with the BU (e.g. `bu1_appname`). The `name` field drives the security context.
 
 ## Troubleshooting
 

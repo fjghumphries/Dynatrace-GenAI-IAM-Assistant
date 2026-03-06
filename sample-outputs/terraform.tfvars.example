@@ -20,28 +20,31 @@ environment_id = "YOUR_ENVIRONMENT_ID"
 # ------------------------------------------------------------------------------
 # Optional: Override Business Units (defaults are defined in variables.tf)
 # ------------------------------------------------------------------------------
+# Note: All values should be lowercase to match Grail bucket naming requirements.
+# The lower() function is retained as a safety net in boundaries/bindings.
 # business_units = {
-#   "BU1" = {
-#     name         = "BU1"
+#   "bu1" = {
+#     name         = "bu1"
 #     description  = "Your First Business Unit"
-#     applications = ["APP_A", "APP_B"]
+#     applications = ["app_a", "app_b"]
 #   }
-#   "BU2" = {
-#     name         = "BU2"
+#   "bu2" = {
+#     name         = "bu2"
 #     description  = "Your Second Business Unit"
-#     applications = ["APP_C", "APP_D"]
+#     applications = ["app_c", "app_d"]
 #   }
 # }
+# Security context output: bu1-prod-app_a-api (always lowercase)
 
 # ------------------------------------------------------------------------------
 # Optional: Override Applications (defaults are defined in variables.tf)
 # ------------------------------------------------------------------------------
 # applications = {
-#   "APP_A" = {
-#     name        = "APP_A"
+#   "app_a" = {
+#     name        = "app_a"
 #     description = "Your Application A"
-#     bu          = "BU1"
-#     stages      = ["PROD", "DEV", "TEST"]
+#     bu          = "bu1"
+#     stages      = ["prod", "dev", "test"]
 #   }
 #   # ... additional applications
 # }
