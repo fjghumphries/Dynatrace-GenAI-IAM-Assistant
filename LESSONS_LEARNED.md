@@ -423,3 +423,20 @@ For most deployments, you only need:
 - **SLO Manager** (custom) - only for Landscape Admins (BU Admins use Admin User)
 
 Everything else is covered by Standard User and Admin User default policies.
+
+---
+
+## 14. Project Restructure: iam/ → sample-outputs/ + outputs/
+
+### Change
+Restructured the project from a single `iam/` directory to a generator workflow:
+- `iam/` → `sample-outputs/` — the existing Terraform config is now a reference sample
+- `outputs/` — new target directory for Copilot-generated configurations
+- `.github/copilot-instructions.md` — updated to teach Copilot the new generation workflow
+- `instructions.md` — added clear `CUSTOMER INPUT START/END` markers so users know exactly where to edit
+- `README.md` (root) — created with generation instructions, suggested prompts, and Terraform usage guide
+
+### Why
+- The original structure assumed a single static Terraform config. The new structure supports a repeatable generation workflow: edit input → ask Copilot → get Terraform output.
+- Keeping the sample separate ensures it's never accidentally overwritten during a new generation.
+- Clear input markers in `instructions.md` reduce user confusion about where to provide their environment details.

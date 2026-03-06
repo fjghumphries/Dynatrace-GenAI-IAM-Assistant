@@ -1,0 +1,218 @@
+# Dynatrace IAM Generator
+
+> Generate Terraform-managed IAM configurations for Dynatrace Grail (3rd Gen) environments using GitHub Copilot.
+
+This project uses an [`instructions.md`](instructions.md) specification file to define the IAM model. You fill in your Business Units, landscapes, and stages — GitHub Copilot reads the spec and generates a complete, ready-to-apply Terraform configuration.
+
+---
+
+## Project Structure
+
+```
+.
+├── instructions.md                  # IAM specification — edit the Customer Input section
+├── LESSONS_LEARNED.md               # Design decisions, gotchas, Dynatrace IAM findings
+├── README.md                        # This file
+├── .github/
+│   └── copilot-instructions.md      # Rules Copilot follows during generation
+│
+├── sample-outputs/                  # Complete reference sample (2 BUs, 2 landscapes, 2 stages)
+│   ├── sample-instructions.md       # The instructions.md used to produce this sample
+│   ├── *.tf                         # Terraform configuration files
+│   ├── docs/                        # Human-readable documentation (see below)
+│   │   ├── policies.txt
+│   │   ├── groups.txt
+│   │   └── bindings.txt
+│   └── README.md                    # Architecture overview for the sample config
+│
+└── outputs/                         # ← YOUR generated Terraform files go here
+    ├── *.tf
+    ├── docs/
+    └── README.md
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| [`instructions.md`](instructions.md) | The IAM specification. Contains all design rules **and** a clearly marked section where you provide your BUs, landscapes, and stages. This is the only file you need to edit. |
+| [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | A living knowledge base of design decisions, Dynatrace IAM gotchas, and findings accumulated during development. Copilot updates it automatically when new insights arise. Review it to understand *why* the configuration is structured the way it is. |
+| `sample-outputs/` | A complete, working example generated from 2 BUs × 2 landscapes × 2 stages. Use it as a reference to understand what Copilot will produce. The `sample-instructions.md` inside shows the exact input that was used. |
+| `outputs/` | Where Copilot writes your generated Terraform files. This directory mirrors the structure of `sample-outputs/`. |
+
+### The `docs/` Folder
+
+Every generated configuration (and the sample) includes a `docs/` subfolder with three plain-text reference files:
+
+| File | Contents |
+|------|----------|
+| `docs/policies.txt` | Complete list of all IAM policies (default, templated, custom) with descriptions and permission statements. |
+| `docs/groups.txt` | Group hierarchy showing every group, its role, base policies, and capabilities at a glance. |
+| `docs/bindings.txt` | Mapping of which policies are bound to which groups, with what boundaries and parameters. |
+
+These files are **not consumed by Terraform** — they exist purely as human-readable documentation so you can review and share the IAM design without reading HCL. Copilot keeps them in sync with the `.tf` files automatically.
+
+---
+
+## How to Generate IAM Configurations
+
+### Step 1 — Edit `instructions.md`
+
+Open [`instructions.md`](instructions.md) and find the **Customer Input Required** section. It is clearly marked with `CUSTOMER INPUT START` / `CUSTOMER INPUT END` comments. Replace the example values with your actual environment:
+
+```text
+Business Units:
+  - FINANCE (landscapes: SAP01, SAP02)
+  - RETAIL (landscapes: ECOMMERCE01, POS01)
+
+Stages active per landscape:
+  - PROD, STAGING, DEV
+
+Landscape-to-BU mapping:
+  - SAP01 → FINANCE
+  - SAP02 → FINANCE
+  - ECOMMERCE01 → RETAIL
+  - POS01 → RETAIL
+```
+
+> **Rules:** Each landscape belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier (e.g. `BU1-PETCLINIC`, `BU2-PETCLINIC`).
+
+### Step 2 — Ask Copilot to Generate
+
+Open GitHub Copilot Chat (in VS Code or on github.com) and use one of these prompts:
+
+<details>
+<summary><strong>Suggested Prompts</strong> (click to expand)</summary>
+
+**Basic generation:**
+```
+Generate the Terraform IAM configuration from instructions.md
+```
+
+**Full generation with explanation:**
+```
+Read instructions.md, extract the customer input, and generate the complete
+Terraform IAM configuration into outputs/. Include all .tf files, docs, and README.
+```
+
+**Re-generate after input changes:**
+```
+I've updated the customer input in instructions.md. Regenerate the Terraform
+configuration in outputs/ to match.
+```
+
+**Add a new BU or landscape:**
+```
+Add a new BU called LOGISTICS with landscapes WAREHOUSE01 and FLEET01.
+Update all Terraform files and docs in outputs/.
+```
+
+</details>
+
+### Step 3 — Review the Output
+
+Copilot generates files in `outputs/` mirroring the structure of `sample-outputs/`:
+
+| File | Purpose |
+|------|---------|
+| `variables.tf` | BU, landscape, and stage definitions |
+| `boundaries_main.tf` | Policy boundary resources |
+| `policies_default_policies.tf` | References to Dynatrace default policies |
+| `policies_templated_policies.tf` | Parameterized custom policies |
+| `policies_custom_policies.tf` | Additional custom policies |
+| `groups_main.tf` | Group definitions |
+| `bindings_bu_bindings.tf` | BU-level policy bindings |
+| `bindings_landscape_bindings.tf` | Landscape-level policy bindings |
+| `docs/policies.txt` | Human-readable policy reference |
+| `docs/groups.txt` | Human-readable group reference |
+| `docs/bindings.txt` | Human-readable bindings reference |
+| `README.md` | Architecture overview for the generated config |
+
+---
+
+## How to Initialize and Run Terraform
+
+### Prerequisites
+
+1. **Terraform** v1.0+ — [Install Terraform](https://developer.hashicorp.com/terraform/install)
+2. **Dynatrace Account** with appropriate permissions
+3. **OAuth Client** configured with these scopes:
+
+   | Scope | Description |
+   |-------|-------------|
+   | `account-idm-read` | View users and groups |
+   | `account-idm-write` | Manage users and groups |
+   | `iam-policies-management` | View and manage policies |
+   | `account-env-read` | View environments |
+
+### Step 1 — Set Environment Variables
+
+```bash
+export DT_CLIENT_ID="your-oauth-client-id"
+export DT_CLIENT_SECRET="your-oauth-client-secret"
+export DT_ACCOUNT_ID="your-account-uuid"
+```
+
+> **Tip:** Store these in a `.env` file (add it to `.gitignore`) and source it: `source .env`
+
+### Step 2 — Initialize Terraform
+
+```bash
+cd outputs
+terraform init
+```
+
+This downloads the [Dynatrace Terraform provider](https://registry.terraform.io/providers/dynatrace-oss/dynatrace/latest/docs) and initializes the working directory.
+
+### Step 3 — Configure Variables
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your environment ID and any overrides
+```
+
+### Step 4 — Preview Changes
+
+```bash
+terraform plan
+```
+
+Review the plan carefully — it shows all IAM resources (groups, policies, boundaries, bindings) that will be created.
+
+### Step 5 — Apply Configuration
+
+```bash
+terraform apply
+```
+
+Type `yes` when prompted to create the resources in your Dynatrace account.
+
+### Step 6 — Verify
+
+1. Log into **Dynatrace Account Management**
+2. Navigate to **Identity & Access Management → Groups** to verify groups
+3. Check **Policies** to confirm policy bindings
+4. Use **Effective Permissions** on a test group to validate scoping
+
+> **Note:** Policy binding changes can take a few minutes to propagate. API-level validation is faster than UI verification.
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `terraform init` fails | Ensure you have internet access and Terraform v1.0+ installed |
+| Authentication errors | Verify `DT_CLIENT_ID`, `DT_CLIENT_SECRET`, and `DT_ACCOUNT_ID` are set correctly |
+| `Boundary does not apply` | Ensure boundary conditions use the correct namespace (`storage:` for data, `settings:` for config) |
+| Permission denied | Verify OAuth client has all required scopes listed above |
+| Slow `terraform plan` | Normal for large configs (>1000 resources). Consider splitting into modules per BU |
+
+---
+
+## References
+
+- [Dynatrace IAM Documentation](https://docs.dynatrace.com/docs/manage/identity-access-management)
+- [Policy Statement Syntax](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/manage-user-permissions-policies/iam-policystatement-syntax)
+- [Policy Boundaries](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/manage-user-permissions-policies/iam-policy-boundaries)
+- [Dynatrace Terraform Provider](https://registry.terraform.io/providers/dynatrace-oss/dynatrace/latest/docs)

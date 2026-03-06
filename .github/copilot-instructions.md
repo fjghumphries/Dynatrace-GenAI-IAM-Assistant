@@ -1,6 +1,26 @@
-# GitHub Copilot Instructions — Shell IAM
+# GitHub Copilot Instructions — Dynatrace IAM Generator
 
-This workspace contains a Terraform-managed Dynatrace IAM configuration for a Grail (3rd Gen) environment. Follow these rules on every interaction.
+This workspace generates Terraform-managed Dynatrace IAM configurations for Grail (3rd Gen) environments from an `instructions.md` specification file. Follow these rules on every interaction.
+
+---
+
+## Project Structure
+
+- **`instructions.md`** — IAM specification and design rules. Contains a **Customer Input** section where users define their BUs, landscapes, and stages.
+- **`sample-outputs/`** — A complete sample Terraform output for reference (2 BUs, 2 landscapes, 2 stages).
+- **`outputs/`** — The target directory for newly generated Terraform configurations. All generated files go here.
+- **`LESSONS_LEARNED.md`** — Gotchas, design decisions, and findings.
+
+---
+
+## Generation Rules
+
+When asked to generate a Terraform IAM configuration:
+
+1. **Read `instructions.md`** to understand the IAM model, group structure, policies, and constraints.
+2. **Extract customer input** from the `Customer Input Required` section in `instructions.md`.
+3. **Use `sample-outputs/`** as a reference for file structure, naming conventions, and Terraform patterns.
+4. **Write all generated files to `outputs/`** — mirror the same file structure as `sample-outputs/`.
 
 ---
 
@@ -10,17 +30,16 @@ This workspace contains a Terraform-managed Dynatrace IAM configuration for a Gr
 - **IAM model**: Grail 3rd Gen only — no Management Zones, no `environment:roles:*`
 - **Security context format**: `BU-STAGE-LANDSCAPE-COMPONENT` (e.g. `BU1-PROD-PETCLINIC01-API`)
 - **IAM is additive**: permissions compound across bindings. Standard User grants unconditional `settings:objects:read` — settings read cannot be scoped via boundaries, only write can.
-- **Key files**:
-  - `iam/variables.tf` — BUs, landscapes, stages definitions
-  - `iam/boundaries_main.tf` — boundary resources
-  - `iam/policies_*.tf` — default, templated, and custom policies
-  - `iam/groups_main.tf` — group resources
-  - `iam/bindings_*.tf` — policy binding resources
-  - `iam/docs/policies.txt` — human-readable policy reference
-  - `iam/docs/groups.txt` — human-readable group reference
-  - `iam/docs/bindings.txt` — human-readable bindings reference
-  - `iam/README.md` — architecture overview
-  - `LESSONS_LEARNED.md` — gotchas, design decisions, and findings
+- **Generated files** (inside `outputs/`):
+  - `variables.tf` — BUs, landscapes, stages definitions
+  - `boundaries_main.tf` — boundary resources
+  - `policies_*.tf` — default, templated, and custom policies
+  - `groups_main.tf` — group resources
+  - `bindings_*.tf` — policy binding resources
+  - `docs/policies.txt` — human-readable policy reference
+  - `docs/groups.txt` — human-readable group reference
+  - `docs/bindings.txt` — human-readable bindings reference
+  - `README.md` — architecture overview
 
 ---
 
@@ -32,10 +51,10 @@ Whenever any Terraform file is changed (variables, policies, boundaries, groups,
 
 | File | What to update |
 |---|---|
-| `iam/docs/policies.txt` | Policy list, counts, descriptions |
-| `iam/docs/groups.txt` | Group hierarchy, capabilities, counts |
-| `iam/docs/bindings.txt` | Binding tables, boundary references, counts |
-| `iam/README.md` | Architecture overview, group/policy tables, file structure |
+| `outputs/docs/policies.txt` | Policy list, counts, descriptions |
+| `outputs/docs/groups.txt` | Group hierarchy, capabilities, counts |
+| `outputs/docs/bindings.txt` | Binding tables, boundary references, counts |
+| `outputs/README.md` | Architecture overview, group/policy tables, file structure |
 
 Do not wait to be asked — update them as part of the same response that makes the Terraform change.
 
@@ -65,5 +84,6 @@ Update `LESSONS_LEARNED.md` in ANY of these situations:
 ## What NOT to do
 
 - Do not create additional markdown summary files after changes — update the existing docs instead
-- Do not leave `iam/docs/*.txt` files out of sync with the Terraform configuration
+- Do not leave `outputs/docs/*.txt` files out of sync with the Terraform configuration
 - Do not skip a LESSONS_LEARNED update just because the user didn't explicitly ask for one
+- Do not write generated files outside of `outputs/` — the root-level files (`instructions.md`, `LESSONS_LEARNED.md`) are project-level, not per-generation
