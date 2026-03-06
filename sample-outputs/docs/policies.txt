@@ -26,7 +26,7 @@ for scoped data access.
 1.1 Standard User
 --------------------------------------------------------------------------------
 Purpose:    Base policy for all non-admin users
-Used by:    BU Users, Landscape Admins, Landscape Users
+Used by:    BU Users, Application Admins, Application Users
 
 Key grants:
   Documents:   Full CRUD (read, write, delete, share)
@@ -73,7 +73,7 @@ Note:       Supports dt.security_context and entity.type conditions
 --------------------------------------------------------------------------------
 Purpose:    Access to Dynatrace system and audit events
 Grants:     ALLOW storage:system:read
-Used by:    BU Admins, Landscape Admins
+Used by:    BU Admins, Application Admins
 Note:       NOT scoped by security_context - applies globally
 
 
@@ -88,7 +88,7 @@ The parameter value is provided when binding the policy to a group.
 2.1 Scoped Grail Data Read
 --------------------------------------------------------------------------------
 Name:       Scoped Grail Data Read
-Parameter:  security_context_prefix (e.g., "BU1-" or "BU1-PROD-LANDSCAPE_A")
+Parameter:  security_context_prefix (e.g., "BU1-" or "BU1-PROD-APPLICATION_A")
 
 Policy Statement:
     ALLOW storage:logs:read 
@@ -161,13 +161,13 @@ already covered by Standard User and Admin User default policies.
 --------------------------------------------------------------------------------
 Purpose:    Adds SLO write capability on top of Standard User
 Why needed: Standard User has SLO read only. Admin User has SLO write,
-            but Landscape Admins use Standard User, not Admin User.
+            but Application Admins use Standard User, not Admin User.
 
 Policy Statement:
     ALLOW slo:slos:read, slo:slos:write;
     ALLOW slo:objective-templates:read;
 
-Used by:    Landscape Admins only
+Used by:    Application Admins only
             (BU Admins get this via Admin User default policy)
 
 
@@ -185,7 +185,7 @@ POLICY SUMMARY TABLE
 | Scoped Grail Data Read       | Templated  | All groups (with boundary+param) |
 | Scoped Settings Read         | Templated  | BU Users, LA Users (with bdry)   |
 | Scoped Settings Write        | Templated  | BU Admins, LA Admins (with bdry) |
-| SLO Manager                  | Custom     | Landscape Admins only            |
+| SLO Manager                  | Custom     | Application Admins only            |
 +------------------------------+------------+----------------------------------+
 
 

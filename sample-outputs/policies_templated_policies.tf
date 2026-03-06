@@ -5,7 +5,7 @@
 # A single policy template can be bound to multiple groups with different
 # parameter values, reducing policy management overhead.
 #
-# Security Context Format: BU-STAGE-LANDSCAPE-COMPONENT
+# Security Context Format: BU-STAGE-APPLICATION-COMPONENT
 # Uses startsWith() for hierarchical scoping as per governance rules.
 #
 # IMPORTANT:
@@ -25,7 +25,7 @@
 #   - security_context_prefix: The dt.security_context prefix to match
 #
 # Example binding: security_context_prefix = "BU1-" for all BU1 data
-# Example binding: security_context_prefix = "BU1-PROD-LANDSCAPE_A" for specific scope
+# Example binding: security_context_prefix = "BU1-PROD-APPLICATION_A" for specific scope
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_policy" "scoped_data_read" {
@@ -101,7 +101,7 @@ EOT
 # Scoped Settings Write Policy (Templated) - For Admins
 # ------------------------------------------------------------------------------
 # This policy grants write access to settings on entities with matching security_context.
-# Should be assigned to landscape admins for scoped configuration changes.
+# Should be assigned to application admins for scoped configuration changes.
 #
 # Parameters:
 #   - security_context_prefix: The dt.security_context prefix to match

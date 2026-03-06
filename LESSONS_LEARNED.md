@@ -13,7 +13,7 @@ sudo ./oneagentctl \
   --set-host-property="dt.security_context=BU2-PROD-PETCLINIC02" \
   --set-host-property="primary_tags.BU=BU2" \
   --set-host-property="primary_tags.stage=PROD" \
-  --set-host-property="primary_tags.landscape=PETCLINIC02" \
+  --set-host-property="primary_tags.application=PETCLINIC02" \
   --set-host-group=PETCLINIC02 \
   --restart-service
 ```
@@ -30,22 +30,22 @@ sudo ./oneagentctl \
 
 ---
 
-## 1. Landscape-to-BU Mapping is 1:1 (Don't Assume Sharing)
+## 1. Application-to-BU Mapping is 1:1 (Don't Assume Sharing)
 
 ### Finding
-During initial setup, landscapes were incorrectly modelled as shared across BUs — creating 4 landscape entries (BU1+PETCLINIC01, BU1+PETCLINIC02, BU2+PETCLINIC01, BU2+PETCLINIC02) when in reality each landscape belongs to exactly one BU.
+During initial setup, applications were incorrectly modelled as shared across BUs — creating 4 application entries (BU1+PETCLINIC01, BU1+PETCLINIC02, BU2+PETCLINIC01, BU2+PETCLINIC02) when in reality each application belongs to exactly one BU.
 
 ### Root Cause
-The Terraform variables.tf landscape map requires unique keys. When two landscapes have the same name (e.g. two apps both called PETCLINIC01 in different BUs), the natural instinct is to prefix the key with the BU. This led to incorrectly assuming that both BUs had both landscapes.
+The Terraform variables.tf application map requires unique keys. When two applications have the same name (e.g. two apps both called PETCLINIC01 in different BUs), the natural instinct is to prefix the key with the BU. This led to incorrectly assuming that both BUs had both applications.
 
 ### Correct Model
-- Each landscape belongs to ONE BU only
-- If landscape names are globally unique (recommended), use the landscape name directly as the map key
+- Each application belongs to ONE BU only
+- If application names are globally unique (recommended), use the application name directly as the map key
 - Only use BU-prefixed keys (e.g. `BU1_APPNAME`) when two different BUs genuinely have separate apps with the same name
 
 ### Impact
-- Incorrect: 4 landscape boundaries + 8 landscape bindings (wasted resources)
-- Correct: 2 landscape boundaries + 4 landscape bindings
+- Incorrect: 4 application boundaries + 8 application bindings (wasted resources)
+- Correct: 2 application boundaries + 4 application bindings
 - Always clarify this mapping with the customer before applying Terraform
 
 ---
@@ -56,7 +56,7 @@ The Terraform variables.tf landscape map requires unique keys. When two landscap
 The `dt.security_context` field is the **primary enforcement mechanism** for IAM in Grail environments. Unlike Management Zones (2nd Gen), which are deprecated for Grail, security context provides hierarchical, scalable access control.
 
 ### Best Practice
-- Use a consistent, hierarchical format: `BU-STAGE-LANDSCAPE-COMPONENT`
+- Use a consistent, hierarchical format: `BU-STAGE-APPLICATION-COMPONENT`
 - Use `startsWith()` operator for hierarchical scoping
 - Ensure security_context is **always populated** via OpenPipeline enrichment
 - Never rely solely on segments for security - they provide filtering, not enforcement
@@ -296,14 +296,14 @@ Business Unit Level
 ├── {BU}-Admins (all BU data + settings write)
 ├── {BU}-Users (all BU data, read only)
 │
-Landscape Level (More Restrictive)
-├── {Landscape}-Admins (landscape data + scoped settings write)
-└── {Landscape}-Users (landscape data only, read only)
+Application Level (More Restrictive)
+├── {Application}-Admins (application data + scoped settings write)
+└── {Application}-Users (application data only, read only)
 ```
 
 ### Key Insight
-- BU groups use `startsWith "BU1-"` - captures all stages/landscapes
-- Landscape groups use boundaries that enumerate stages: `startsWith "BU1-PROD-LANDSCAPE_A"; startsWith "BU1-DEV-LANDSCAPE_A";`
+- BU groups use `startsWith "BU1-"` - captures all stages/applications
+- Application groups use boundaries that enumerate stages: `startsWith "BU1-PROD-APPLICATION_A"; startsWith "BU1-DEV-APPLICATION_A";`
 
 ---
 
@@ -355,12 +355,12 @@ Policy binding changes can take a few minutes to propagate. API-level validation
 - **Use Boundaries**: When applying default policies to scoped groups
 - **Use Custom Policies**: Only when default policies don't cover the need
 
-### Resource Counts at Scale (10 BUs, 2000 Landscapes)
+### Resource Counts at Scale (10 BUs, 2000 Applications)
 | Resource | Count |
 |----------|------:|
 | Policies | 7 (3 default + 3 templated + 1 custom) |
-| Groups | 4,020 (20 BU + 4,000 Landscape) |
-| Boundaries | 4,020 (20 BU + 4,000 Landscape) |
+| Groups | 4,020 (20 BU + 4,000 Application) |
+| Boundaries | 4,020 (20 BU + 4,000 Application) |
 | Bindings | ~6,040 |
 | **Total Terraform Resources** | **~14,087** |
 
@@ -369,8 +369,8 @@ Policy binding changes can take a few minutes to propagate. API-level validation
 |------|---------|------:|
 | BU Data | 1 × BU | 10 |
 | BU Settings | 1 × BU | 10 |
-| Landscape Data | 1 × Landscape | 2,000 |
-| Landscape Settings | 1 × Landscape | 2,000 |
+| Application Data | 1 × Application | 2,000 |
+| Application Settings | 1 × Application | 2,000 |
 
 ### Performance
 - Max 100 statements per policy
@@ -420,7 +420,7 @@ For most deployments, you only need:
 - **Scoped Grail Data Read** (templated) - logs, metrics, spans, events, bizevents
 - **Scoped Settings Write** (templated) - for admins who need scoped config access
 - **Scoped Settings Read** (templated) - only useful if NOT using Standard User
-- **SLO Manager** (custom) - only for Landscape Admins (BU Admins use Admin User)
+- **SLO Manager** (custom) - only for Application Admins (BU Admins use Admin User)
 
 Everything else is covered by Standard User and Admin User default policies.
 
@@ -440,3 +440,24 @@ Restructured the project from a single `iam/` directory to a generator workflow:
 - The original structure assumed a single static Terraform config. The new structure supports a repeatable generation workflow: edit input → ask Copilot → get Terraform output.
 - Keeping the sample separate ensures it's never accidentally overwritten during a new generation.
 - Clear input markers in `instructions.md` reduce user confusion about where to provide their environment details.
+
+---
+
+## 15. Terminology Rename: Landscape → Application
+
+### Change
+Renamed "landscape" to "application" across all project files — documentation, Terraform variables, resource names, comments, and file names (`bindings_landscape_bindings.tf` → `bindings_application_bindings.tf`).
+
+### Why
+- "Landscape" was customer-specific terminology from the original engagement. "Application" is a more universally understood term that maps directly to what most Dynatrace users call their monitored workloads.
+- Using "application" makes the project more accessible to new users without requiring them to learn domain-specific vocabulary.
+
+### What Changed
+- All `.md`, `.txt`, `.tf`, `.tfvars`, `.example` files updated
+- Terraform variable `landscapes` → `applications`, resource names `landscape_*` → `application_*`
+- File rename: `bindings_landscape_bindings.tf` → `bindings_application_bindings.tf`
+- The `sample-outputs/` directory reflects the new naming as a reference
+
+### Impact
+- Existing Terraform state from the old `iam/` directory (which used `landscape` naming) is not affected — it lives in `sample-outputs/` as a reference only.
+- New generations via `outputs/` will use `application` naming throughout.

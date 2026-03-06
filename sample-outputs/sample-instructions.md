@@ -13,7 +13,7 @@ Goals:
 ## 2. Customer Environment
 
 - **10 Business Units (BUs)**
-- **~2,000 landscapes** (also called deployments/applications)
+- **~2,000 applications** (also called deployments or landscapes)
 - Previously used 1 Management Zone per deployment (2nd Gen) — migrating to Grail IAM
 - Telemetry from: OneAgent, OpenTelemetry, Extensions, APIs
 
@@ -21,14 +21,14 @@ Goals:
 
 ## 3. Group Model
 
-Two levels of groups are created. Both levels have two roles. This is fixed — customers do not change the group structure, only the BU and landscape names they apply to.
+Two levels of groups are created. Both levels have two roles. This is fixed — customers do not change the group structure, only the BU and application names they apply to.
 
 ### Levels
 
 | Level | Scope | Example group names |
 |---|---|---|
-| **BU** | All data within a Business Unit (all landscapes, all stages) | `BU1-Admins`, `BU1-Users` |
-| **Landscape** | Data within one landscape only (all stages within it) | `PETCLINIC01-Admins`, `PETCLINIC01-Users` |
+| **BU** | All data within a Business Unit (all applications, all stages) | `BU1-Admins`, `BU1-Users` |
+| **Application** | Data within one application only (all stages within it) | `PETCLINIC01-Admins`, `PETCLINIC01-Users` |
 
 ### Roles
 
@@ -36,12 +36,12 @@ Two levels of groups are created. Both levels have two roles. This is fixed — 
 |---|---|---|---|---|
 | **Admins** (BU level) | Admin User | Scoped to BU | Write, scoped to BU | Yes (via Admin User) |
 | **Users** (BU level) | Standard User | Scoped to BU | Read only (global) | No |
-| **Admins** (Landscape level) | Standard User + SLO Manager | Scoped to landscape | Write, scoped to landscape | Yes (via SLO Manager) |
-| **Users** (Landscape level) | Standard User | Scoped to landscape | Read only (global) | No |
+| **Admins** (Application level) | Standard User + SLO Manager | Scoped to application | Write, scoped to application | Yes (via SLO Manager) |
+| **Users** (Application level) | Standard User | Scoped to application | Read only (global) | No |
 
 ### Customer Input Required
 
-> **⬇️ EDIT THIS SECTION with your BUs, landscapes, and stages, then ask Copilot to generate the Terraform configuration. ⬇️**
+> **⬇️ EDIT THIS SECTION with your BUs, applications, and stages, then ask Copilot to generate the Terraform configuration. ⬇️**
 
 To generate the Terraform configuration, replace the example values below with your actual environment details:
 
@@ -49,26 +49,26 @@ To generate the Terraform configuration, replace the example values below with y
 <!-- ===================== CUSTOMER INPUT START ===================== -->
 
 Business Units:
-  - BU1 (landscapes: PETCLINIC01)
-  - BU2 (landscapes: PETCLINIC02)
+  - BU1 (applications: PETCLINIC01)
+  - BU2 (applications: PETCLINIC02)
 
-Stages active per landscape:
+Stages active per application:
   - PROD, DEV
 
-Landscape-to-BU mapping:
+Application-to-BU mapping:
   - PETCLINIC01 → BU1
   - PETCLINIC02 → BU2
 
 <!-- ===================== CUSTOMER INPUT END ======================= -->
 ```
 
-> Each landscape belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier per landscape (e.g. `BU1-PETCLINIC` and `BU2-PETCLINIC`).
+> Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier per application (e.g. `BU1-PETCLINIC` and `BU2-PETCLINIC`).
 
 **Instructions:**
 1. Replace the BU names (BU1, BU2, ...) with real business unit identifiers.
-2. Replace the landscape names (PETCLINIC01, ...) with real application/deployment names.
+2. Replace the application names (PETCLINIC01, ...) with real application/deployment names.
 3. List all stages that apply (e.g. PROD, DEV, STAGING, TEST).
-4. Ensure every landscape maps to exactly one BU.
+4. Ensure every application maps to exactly one BU.
 5. Once updated, ask GitHub Copilot to generate the configuration (see the project README for suggested prompts).
 
 ---
@@ -87,7 +87,7 @@ These fields exist across all signals and are usable in IAM policy conditions:
 
 Tags use the `primary_tags.<name>` prefix. Planned tags:
 - `primary_tags.bu`
-- `primary_tags.landscape`
+- `primary_tags.application`
 - `primary_tags.stage`
 - Possible future: tier, SOM, ownership team, criticality, component
 
@@ -100,7 +100,7 @@ Tags use the `primary_tags.<name>` prefix. Planned tags:
 ### Format
 
 ```
-dt.security_context = BU-STAGE-LANDSCAPE-COMPONENT
+dt.security_context = BU-STAGE-APPLICATION-COMPONENT
 ```
 
 Examples:
@@ -123,7 +123,7 @@ sudo ./oneagentctl \
   --set-host-group=PETCLINIC02 \
   --set-host-property="primary_tags.BU=BU2" \
   --set-host-property="primary_tags.stage=PROD" \
-  --set-host-property="primary_tags.landscape=PETCLINIC02" \
+  --set-host-property="primary_tags.application=PETCLINIC02" \
   --set-host-property="dt.security_context=BU2-PROD-PETCLINIC02" \
   --restart-service
 ```

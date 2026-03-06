@@ -9,11 +9,11 @@
 # - Admin User: Full automation admin, SLO write, settings write, extensions, etc.
 #
 # Custom policies are only needed for:
-# - SLO Manager: For Landscape Admins who need SLO write but not full Admin User
+# - SLO Manager: For Application Admins who need SLO write but not full Admin User
 # ============================================================================
 
 # ------------------------------------------------------------------------------
-# SLO Manager Policy - For Landscape Admins
+# SLO Manager Policy - For Application Admins
 # ------------------------------------------------------------------------------
 # Grants SLO write access for admins who don't need full Admin User privileges.
 # Standard User only has read - this adds write capability.

@@ -1,8 +1,11 @@
 # Dynatrace IAM Generator
 
-> Generate Terraform-managed IAM configurations for Dynatrace Grail (3rd Gen) environments using GitHub Copilot.
+> [!WARNING]
+> **This project is experimental.** The generated Terraform configurations are a starting point, not a production-ready solution. Real-world deployments will require manual review, iterative adjustments through additional Copilot prompts, and thorough testing before applying to a live Dynatrace account. Always validate with `terraform plan` and verify effective permissions in a non-production environment first.
 
-This project uses an [`instructions.md`](instructions.md) specification file to define the IAM model. You fill in your Business Units, landscapes, and stages — GitHub Copilot reads the spec and generates a complete, ready-to-apply Terraform configuration.
+Generate Terraform-managed IAM configurations for Dynatrace Grail (3rd Gen) environments using GitHub Copilot.
+
+This project uses an [`instructions.md`](instructions.md) specification file to define the IAM model. You fill in your Business Units, applications, and stages — GitHub Copilot reads the spec and generates a complete, ready-to-apply Terraform configuration.
 
 ---
 
@@ -16,7 +19,7 @@ This project uses an [`instructions.md`](instructions.md) specification file to 
 ├── .github/
 │   └── copilot-instructions.md      # Rules Copilot follows during generation
 │
-├── sample-outputs/                  # Complete reference sample (2 BUs, 2 landscapes, 2 stages)
+├── sample-outputs/                  # Complete reference sample (2 BUs, 2 applications, 2 stages)
 │   ├── sample-instructions.md       # The instructions.md used to produce this sample
 │   ├── *.tf                         # Terraform configuration files
 │   ├── docs/                        # Human-readable documentation (see below)
@@ -35,9 +38,9 @@ This project uses an [`instructions.md`](instructions.md) specification file to 
 
 | File | Purpose |
 |------|---------|
-| [`instructions.md`](instructions.md) | The IAM specification. Contains all design rules **and** a clearly marked section where you provide your BUs, landscapes, and stages. This is the only file you need to edit. |
+| [`instructions.md`](instructions.md) | The IAM specification. Contains all design rules **and** a clearly marked section where you provide your BUs, applications, and stages. This is the only file you need to edit. |
 | [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | A living knowledge base of design decisions, Dynatrace IAM gotchas, and findings accumulated during development. Copilot updates it automatically when new insights arise. Review it to understand *why* the configuration is structured the way it is. |
-| `sample-outputs/` | A complete, working example generated from 2 BUs × 2 landscapes × 2 stages. Use it as a reference to understand what Copilot will produce. The `sample-instructions.md` inside shows the exact input that was used. |
+| `sample-outputs/` | A complete, working example generated from 2 BUs × 2 applications × 2 stages. Use it as a reference to understand what Copilot will produce. The `sample-instructions.md` inside shows the exact input that was used. |
 | `outputs/` | Where Copilot writes your generated Terraform files. This directory mirrors the structure of `sample-outputs/`. |
 
 ### The `docs/` Folder
@@ -62,20 +65,20 @@ Open [`instructions.md`](instructions.md) and find the **Customer Input Required
 
 ```text
 Business Units:
-  - FINANCE (landscapes: SAP01, SAP02)
-  - RETAIL (landscapes: ECOMMERCE01, POS01)
+  - FINANCE (applications: SAP01, SAP02)
+  - RETAIL (applications: ECOMMERCE01, POS01)
 
-Stages active per landscape:
+Stages active per application:
   - PROD, STAGING, DEV
 
-Landscape-to-BU mapping:
+Application-to-BU mapping:
   - SAP01 → FINANCE
   - SAP02 → FINANCE
   - ECOMMERCE01 → RETAIL
   - POS01 → RETAIL
 ```
 
-> **Rules:** Each landscape belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier (e.g. `BU1-PETCLINIC`, `BU2-PETCLINIC`).
+> **Rules:** Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier (e.g. `BU1-PETCLINIC`, `BU2-PETCLINIC`).
 
 ### Step 2 — Ask Copilot to Generate
 
@@ -101,9 +104,9 @@ I've updated the customer input in instructions.md. Regenerate the Terraform
 configuration in outputs/ to match.
 ```
 
-**Add a new BU or landscape:**
+**Add a new BU or application:**
 ```
-Add a new BU called LOGISTICS with landscapes WAREHOUSE01 and FLEET01.
+Add a new BU called LOGISTICS with applications WAREHOUSE01 and FLEET01.
 Update all Terraform files and docs in outputs/.
 ```
 
@@ -115,14 +118,14 @@ Copilot generates files in `outputs/` mirroring the structure of `sample-outputs
 
 | File | Purpose |
 |------|---------|
-| `variables.tf` | BU, landscape, and stage definitions |
+| `variables.tf` | BU, application, and stage definitions |
 | `boundaries_main.tf` | Policy boundary resources |
 | `policies_default_policies.tf` | References to Dynatrace default policies |
 | `policies_templated_policies.tf` | Parameterized custom policies |
 | `policies_custom_policies.tf` | Additional custom policies |
 | `groups_main.tf` | Group definitions |
 | `bindings_bu_bindings.tf` | BU-level policy bindings |
-| `bindings_landscape_bindings.tf` | Landscape-level policy bindings |
+| `bindings_application_bindings.tf` | Application-level policy bindings |
 | `docs/policies.txt` | Human-readable policy reference |
 | `docs/groups.txt` | Human-readable group reference |
 | `docs/bindings.txt` | Human-readable bindings reference |

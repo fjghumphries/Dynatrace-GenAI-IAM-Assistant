@@ -5,8 +5,8 @@
 # They restrict access based on dt.security_context field using startsWith()
 # for hierarchical scoping as per the governance rules.
 #
-# Security Context Format: BU-STAGE-LANDSCAPE-COMPONENT
-# Example: BU1-PROD-LANDSCAPE_A-API
+# Security Context Format: BU-STAGE-APPLICATION-COMPONENT
+# Example: BU1-PROD-APPLICATION_A-API
 #
 # IMPORTANT:
 # - Boundaries don't support AND operator - each line is a separate condition
@@ -27,23 +27,23 @@ resource "dynatrace_iam_policy_boundary" "bu_boundary" {
   name = "Boundary-${each.key}"
 
   # Boundary query restricts to all data where security_context starts with BU name
-  # This captures all stages, landscapes, and components within the BU
+  # This captures all stages, applications, and components within the BU
   query = "storage:dt.security_context startsWith \"${each.key}-\";"
 }
 
 # ------------------------------------------------------------------------------
-# Landscape-Level Boundaries  
-# These boundaries restrict access to data within a specific Landscape
-# More restrictive than BU boundaries - used for landscape-specific teams
+# Application-Level Boundaries  
+# These boundaries restrict access to data within a specific Application
+# More restrictive than BU boundaries - used for application-specific teams
 # ------------------------------------------------------------------------------
 
-resource "dynatrace_iam_policy_boundary" "landscape_boundary" {
-  for_each = var.landscapes
+resource "dynatrace_iam_policy_boundary" "application_boundary" {
+  for_each = var.applications
 
   name = "Boundary-${each.key}"
 
-  # Match all stages within this landscape for this BU
-  # Format: BU-*-LANDSCAPE to capture PROD, DEV, TEST etc.
+  # Match all stages within this application for this BU
+  # Format: BU-*-APPLICATION to capture PROD, DEV, TEST etc.
   # Using multiple lines for each stage since we can't use AND
   query = <<-EOT
 storage:dt.security_context startsWith "${each.value.bu}-PROD-${each.key}";
@@ -53,13 +53,13 @@ EOT
 }
 
 # ------------------------------------------------------------------------------
-# Settings Boundaries for Landscape Admins
-# These are applied when landscape admins need to change settings
+# Settings Boundaries for Application Admins
+# These are applied when application admins need to change settings
 # Uses settings:dt.security_context for settings on entities
 # ------------------------------------------------------------------------------
 
-resource "dynatrace_iam_policy_boundary" "landscape_settings_boundary" {
-  for_each = var.landscapes
+resource "dynatrace_iam_policy_boundary" "application_settings_boundary" {
+  for_each = var.applications
 
   name = "Boundary-${each.key}-Settings"
 

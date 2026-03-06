@@ -9,7 +9,7 @@ This repository contains Terraform configurations for managing Dynatrace Identit
 All IAM enforcement uses the `dt.security_context` field with the format:
 
 ```
-BU-STAGE-LANDSCAPE-COMPONENT
+BU-STAGE-APPLICATION-COMPONENT
 ```
 
 Examples:
@@ -24,9 +24,9 @@ Account Level
 │   ├── {BU}-Admins          → Full access to all BU data and settings
 │   └── {BU}-Users           → Read access to all BU data
 │
-└── Landscape-Level Groups
-    ├── {Landscape}-Admins   → Read data + write settings for landscape
-    └── {Landscape}-Users    → Read-only access to landscape data
+└── Application-Level Groups
+    ├── {Application}-Admins   → Read data + write settings for application
+    └── {Application}-Users    → Read-only access to application data
 ```
 
 ## Files Structure
@@ -45,7 +45,7 @@ iam/
 ├── policies_custom_policies.tf      # Additional custom policies
 ├── groups_main.tf                   # Group definitions
 ├── bindings_bu_bindings.tf          # BU-level policy bindings
-└── bindings_landscape_bindings.tf   # Landscape-level policy bindings
+└── bindings_application_bindings.tf   # Application-level policy bindings
 ```
 
 ## Prerequisites
@@ -99,7 +99,7 @@ terraform apply
 Boundaries decouple permissions (the "What") from scope (the "Where"). They contain conditions that restrict access based on security_context:
 
 - **BU Boundaries**: `storage:dt.security_context startsWith "BU1-";`
-- **Landscape Boundaries**: Include all stages within a landscape
+- **Application Boundaries**: Include all stages within a application
 
 ### Templated Policies
 
@@ -128,8 +128,8 @@ This configuration uses Dynatrace default policies to minimize custom policy ove
 |-------|-------------|-------------|----------|------------|------|
 | BU-Admins | Admin User | All BU data | Write (scoped) | Full Admin | Manager |
 | BU-Users | Standard User | All BU data | Read (global) | Limited | Reader |
-| Landscape-Admins | Standard User | Landscape data | Write (scoped) | Limited | Manager |
-| Landscape-Users | Standard User | Landscape data | Read (global) | Limited | Reader |
+| Application-Admins | Standard User | Application data | Write (scoped) | Limited | Manager |
+| Application-Users | Standard User | Application data | Read (global) | Limited | Reader |
 
 ## Customization
 
@@ -142,15 +142,15 @@ business_units = {
   "BU3" = {
     name        = "BU3"
     description = "New Business Unit"
-    landscapes  = ["LANDSCAPE_E", "LANDSCAPE_F"]
+    applications  = ["APPLICATION_E", "APPLICATION_F"]
   }
 }
 ```
 
-### Adding New Landscapes
+### Adding New Applications
 
 ```hcl
-landscapes = {
+applications = {
   "PETCLINIC03" = {
     name        = "PETCLINIC03"
     description = "PetClinic 03 - BU1"
@@ -160,7 +160,7 @@ landscapes = {
 }
 ```
 
-> **Note**: Landscape map keys must be unique. If a landscape name is shared across BUs,
+> **Note**: Application map keys must be unique. If a application name is shared across BUs,
 > prefix the key with the BU (e.g. `BU1_APPNAME`). The `name` field drives the security context.
 
 ## Troubleshooting

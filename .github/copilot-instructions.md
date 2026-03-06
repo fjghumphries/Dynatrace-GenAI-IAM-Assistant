@@ -6,8 +6,8 @@ This workspace generates Terraform-managed Dynatrace IAM configurations for Grai
 
 ## Project Structure
 
-- **`instructions.md`** — IAM specification and design rules. Contains a **Customer Input** section where users define their BUs, landscapes, and stages.
-- **`sample-outputs/`** — A complete sample Terraform output for reference (2 BUs, 2 landscapes, 2 stages).
+- **`instructions.md`** — IAM specification and design rules. Contains a **Customer Input** section where users define their BUs, applications, and stages.
+- **`sample-outputs/`** — A complete sample Terraform output for reference (2 BUs, 2 applications, 2 stages).
 - **`outputs/`** — The target directory for newly generated Terraform configurations. All generated files go here.
 - **`LESSONS_LEARNED.md`** — Gotchas, design decisions, and findings.
 
@@ -28,10 +28,10 @@ When asked to generate a Terraform IAM configuration:
 
 - **Provider**: dynatrace-oss/dynatrace ~> 1.91
 - **IAM model**: Grail 3rd Gen only — no Management Zones, no `environment:roles:*`
-- **Security context format**: `BU-STAGE-LANDSCAPE-COMPONENT` (e.g. `BU1-PROD-PETCLINIC01-API`)
+- **Security context format**: `BU-STAGE-APPLICATION-COMPONENT` (e.g. `BU1-PROD-PETCLINIC01-API`)
 - **IAM is additive**: permissions compound across bindings. Standard User grants unconditional `settings:objects:read` — settings read cannot be scoped via boundaries, only write can.
 - **Generated files** (inside `outputs/`):
-  - `variables.tf` — BUs, landscapes, stages definitions
+  - `variables.tf` — BUs, applications, stages definitions
   - `boundaries_main.tf` — boundary resources
   - `policies_*.tf` — default, templated, and custom policies
   - `groups_main.tf` — group resources
@@ -77,7 +77,7 @@ Update `LESSONS_LEARNED.md` in ANY of these situations:
 - In `docs/*.txt` files, preserve the existing plain-text section format with `===` and `---` dividers
 - In `README.md`, keep tables and code block formatting
 - When updating `LESSONS_LEARNED.md`, add a new `##` section or append to an existing relevant section — never delete existing entries
-- Never leave stale examples (e.g. old landscape names like `LANDSCAPE_A`) after a rename
+- Never leave stale examples (e.g. old application names like `APPLICATION_A`) after a rename
 
 ---
 

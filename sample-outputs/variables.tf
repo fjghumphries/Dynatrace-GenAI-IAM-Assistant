@@ -2,8 +2,8 @@
 # Variables Configuration
 # ============================================================================
 # This file defines all variables used across the IAM configuration.
-# Security context format: BU-STAGE-LANDSCAPE-COMPONENT
-# Example: BU1-PROD-LANDSCAPE_A-API
+# Security context format: BU-STAGE-APPLICATION-COMPONENT
+# Example: BU1-PROD-APPLICATION_A-API
 # ============================================================================
 
 # ------------------------------------------------------------------------------
@@ -28,36 +28,36 @@ variable "business_units" {
   type = map(object({
     name        = string
     description = string
-    landscapes  = list(string)
+    applications  = list(string)
   }))
   default = {
     "BU1" = {
       name        = "BU1"
       description = "Business Unit 1"
-      landscapes  = ["PETCLINIC01"]
+      applications  = ["PETCLINIC01"]
     }
     "BU2" = {
       name        = "BU2"
       description = "Business Unit 2"
-      landscapes  = ["PETCLINIC02"]
+      applications  = ["PETCLINIC02"]
     }
   }
 }
 
 # ------------------------------------------------------------------------------
-# Landscapes (previously called deployments/applications)
-# Each landscape belongs to a specific BU
+# Applications
+# Each application belongs to a specific BU
 # ------------------------------------------------------------------------------
-variable "landscapes" {
-  description = "Map of Landscapes with their configuration"
+variable "applications" {
+  description = "Map of Applications with their configuration"
   type = map(object({
     name        = string
     description = string
     bu          = string
     stages      = list(string)
   }))
-  # Each landscape belongs to exactly one BU, so no BU prefix needed in keys.
-  # The 'name' field is the actual landscape identifier used in security contexts.
+  # Each application belongs to exactly one BU, so no BU prefix needed in keys.
+  # The 'name' field is the actual application identifier used in security contexts.
   # Security context format: {BU}-{STAGE}-{name}  e.g. BU1-PROD-PETCLINIC01
   default = {
     "PETCLINIC01" = {
@@ -76,7 +76,7 @@ variable "landscapes" {
 }
 
 # ------------------------------------------------------------------------------
-# Stages (environments within each landscape)
+# Stages (environments within each application)
 # ------------------------------------------------------------------------------
 variable "stages" {
   description = "List of deployment stages"

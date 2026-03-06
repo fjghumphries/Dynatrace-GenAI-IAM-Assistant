@@ -24,26 +24,26 @@ environment_id = "YOUR_ENVIRONMENT_ID"
 #   "BU1" = {
 #     name        = "BU1"
 #     description = "Your First Business Unit"
-#     landscapes  = ["LANDSCAPE_A", "LANDSCAPE_B"]
+#     applications  = ["APPLICATION_A", "APPLICATION_B"]
 #   }
 #   "BU2" = {
 #     name        = "BU2"
 #     description = "Your Second Business Unit"
-#     landscapes  = ["LANDSCAPE_C", "LANDSCAPE_D"]
+#     applications  = ["APPLICATION_C", "APPLICATION_D"]
 #   }
 # }
 
 # ------------------------------------------------------------------------------
-# Optional: Override Landscapes (defaults are defined in variables.tf)
+# Optional: Override Applications (defaults are defined in variables.tf)
 # ------------------------------------------------------------------------------
-# landscapes = {
-#   "LANDSCAPE_A" = {
-#     name        = "LANDSCAPE_A"
-#     description = "Your Landscape A"
+# applications = {
+#   "APPLICATION_A" = {
+#     name        = "APPLICATION_A"
+#     description = "Your Application A"
 #     bu          = "BU1"
 #     stages      = ["PROD", "DEV", "TEST"]
 #   }
-#   # ... additional landscapes
+#   # ... additional applications
 # }
 
 # ------------------------------------------------------------------------------

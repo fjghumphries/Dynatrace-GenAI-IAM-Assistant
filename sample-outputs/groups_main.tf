@@ -9,9 +9,9 @@
 #   - {BU}-Admins: Full admin access within the BU
 #   - {BU}-Users: Read-only access within the BU
 #
-# - Landscape Level Groups: Access to specific landscape only
-#   - {Landscape}-Admins: Can change settings scoped to landscape
-#   - {Landscape}-Users: Read-only access to landscape data
+# - Application Level Groups: Access to specific application only
+#   - {Application}-Admins: Can change settings scoped to application
+#   - {Application}-Users: Read-only access to application data
 #
 # Note: Using lifecycle ignore_changes for permissions because we manage
 # permissions via dynatrace_iam_policy_bindings_v2 resource
@@ -51,16 +51,16 @@ resource "dynatrace_iam_group" "bu_users" {
 }
 
 # ------------------------------------------------------------------------------
-# Landscape-Level Admin Groups
-# These users can change settings for entities within their landscape
-# Scoped by security_context to their specific landscape
+# Application-Level Admin Groups
+# These users can change settings for entities within their application
+# Scoped by security_context to their specific application
 # ------------------------------------------------------------------------------
 
-resource "dynatrace_iam_group" "landscape_admins" {
-  for_each = var.landscapes
+resource "dynatrace_iam_group" "application_admins" {
+  for_each = var.applications
 
   name        = "${each.key}-Admins"
-  description = "Administrators for ${each.value.description} (${each.value.bu}). Can manage settings for this landscape."
+  description = "Administrators for ${each.value.description} (${each.value.bu}). Can manage settings for this application."
 
   lifecycle {
     ignore_changes = [permissions]
@@ -68,16 +68,16 @@ resource "dynatrace_iam_group" "landscape_admins" {
 }
 
 # ------------------------------------------------------------------------------
-# Landscape-Level User Groups
-# These users have read-only access to data within their landscape
-# Most restrictive access - only their specific landscape
+# Application-Level User Groups
+# These users have read-only access to data within their application
+# Most restrictive access - only their specific application
 # ------------------------------------------------------------------------------
 
-resource "dynatrace_iam_group" "landscape_users" {
-  for_each = var.landscapes
+resource "dynatrace_iam_group" "application_users" {
+  for_each = var.applications
 
   name        = "${each.key}-Users"
-  description = "Users for ${each.value.description} (${each.value.bu}). Read-only access to landscape data."
+  description = "Users for ${each.value.description} (${each.value.bu}). Read-only access to application data."
 
   lifecycle {
     ignore_changes = [permissions]

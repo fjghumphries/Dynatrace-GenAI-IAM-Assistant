@@ -28,20 +28,20 @@ output "bu_user_groups" {
   }
 }
 
-output "landscape_admin_groups" {
-  description = "Map of Landscape Admin group IDs"
+output "application_admin_groups" {
+  description = "Map of Application Admin group IDs"
   value = {
-    for key, group in dynatrace_iam_group.landscape_admins : key => {
+    for key, group in dynatrace_iam_group.application_admins : key => {
       id   = group.id
       name = group.name
     }
   }
 }
 
-output "landscape_user_groups" {
-  description = "Map of Landscape User group IDs"
+output "application_user_groups" {
+  description = "Map of Application User group IDs"
   value = {
-    for key, group in dynatrace_iam_group.landscape_users : key => {
+    for key, group in dynatrace_iam_group.application_users : key => {
       id   = group.id
       name = group.name
     }
@@ -62,10 +62,10 @@ output "bu_boundaries" {
   }
 }
 
-output "landscape_boundaries" {
-  description = "Map of Landscape-level boundary IDs"
+output "application_boundaries" {
+  description = "Map of Application-level boundary IDs"
   value = {
-    for key, boundary in dynatrace_iam_policy_boundary.landscape_boundary : key => {
+    for key, boundary in dynatrace_iam_policy_boundary.application_boundary : key => {
       id   = boundary.id
       name = boundary.name
     }
@@ -94,8 +94,8 @@ output "iam_summary" {
   description = "Summary of created IAM resources"
   value = {
     business_units     = keys(var.business_units)
-    landscapes         = keys(var.landscapes)
-    groups_created     = length(dynatrace_iam_group.bu_admins) + length(dynatrace_iam_group.bu_users) + length(dynatrace_iam_group.landscape_admins) + length(dynatrace_iam_group.landscape_users)
-    boundaries_created = length(dynatrace_iam_policy_boundary.bu_boundary) + length(dynatrace_iam_policy_boundary.landscape_boundary) + length(dynatrace_iam_policy_boundary.landscape_settings_boundary) + length(dynatrace_iam_policy_boundary.bu_settings_boundary)
+    applications         = keys(var.applications)
+    groups_created     = length(dynatrace_iam_group.bu_admins) + length(dynatrace_iam_group.bu_users) + length(dynatrace_iam_group.application_admins) + length(dynatrace_iam_group.application_users)
+    boundaries_created = length(dynatrace_iam_policy_boundary.bu_boundary) + length(dynatrace_iam_policy_boundary.application_boundary) + length(dynatrace_iam_policy_boundary.application_settings_boundary) + length(dynatrace_iam_policy_boundary.bu_settings_boundary)
   }
 }
