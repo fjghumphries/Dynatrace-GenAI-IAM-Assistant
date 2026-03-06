@@ -5,7 +5,7 @@
 # A single policy template can be bound to multiple groups with different
 # parameter values, reducing policy management overhead.
 #
-# Security Context Format: BU-STAGE-APPLICATION-COMPONENT
+# Security Context Format: bu-stage-application-component (LOWERCASE)
 # Uses startsWith() for hierarchical scoping as per governance rules.
 #
 # IMPORTANT:
@@ -78,6 +78,9 @@ EOT
 # Scoped Settings Read Policy (Templated)
 # ------------------------------------------------------------------------------
 # This policy grants read access to settings on entities with matching security_context.
+# NOTE: Standard User already grants unconditional settings:objects:read, so this
+# policy adds nothing for groups that already have Standard User. It is retained
+# for explicitness and potential use without Standard User.
 #
 # Parameters:
 #   - security_context_prefix: The dt.security_context prefix to match
@@ -101,7 +104,8 @@ EOT
 # Scoped Settings Write Policy (Templated) - For Admins
 # ------------------------------------------------------------------------------
 # This policy grants write access to settings on entities with matching security_context.
-# Should be assigned to application admins for scoped configuration changes.
+# Should be assigned to admin groups for scoped configuration changes.
+# This is the ONLY source of settings:objects:write — Admin User is NOT used.
 #
 # Parameters:
 #   - security_context_prefix: The dt.security_context prefix to match

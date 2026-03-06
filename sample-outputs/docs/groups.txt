@@ -5,7 +5,12 @@
 This document describes all IAM groups created by this configuration.
 Groups contain users and are assigned policies to define their access.
 
-Total groups (sample config): 8 (4 BU + 4 Application)
+Generated for:
+  Business Units : bu1, bu2
+  Applications   : petclinic01 (bu1), petclinic02 (bu2)
+  Stages         : prod, dev
+
+Total groups (this config): 8 (4 BU-level + 4 Application-level)
 Total groups at scale (10 BUs, 2000 Applications): 4,020
 
 ================================================================================
@@ -32,7 +37,9 @@ SECTION 1: BUSINESS UNIT LEVEL GROUPS
 ================================================================================
 
 These groups provide access to ALL data within a specific Business Unit,
-across all applications and stages (prod, dev, test).
+across all applications and stages (prod, dev).
+Future-proof: new applications are automatically included when their
+security_context starts with the BU prefix.
 
 --------------------------------------------------------------------------------
 1.1 bu1-Admins
@@ -45,8 +52,7 @@ Description:    Administrators for Business Unit 1.
                 modify settings on entities with bu1 security context.
 
 Data Scope:     All data where dt.security_context starts with "bu1-"
-                Captures: bu1-prod-*, bu1-dev-*, bu1-test-*
-                Future-proof: new applications automatically included
+                Captures: bu1-prod-*, bu1-dev-*, and any future stages/apps
 
 Capabilities:
     ✓ View all bu1 monitoring data (logs, metrics, traces, events, bizevents)
@@ -74,7 +80,7 @@ Data Scope:     All data where dt.security_context starts with "bu1-"
 Capabilities:
     ✓ View all bu1 monitoring data (logs, metrics, traces, events, bizevents)
     ✓ View entities scoped to bu1
-    ✓ Read settings (global - all settings, unscoped)
+    ✓ Read settings (global — all settings, unscoped, via Standard User)
     ✓ SLO read, Automation read/limited write, Davis AI
     ✓ Documents (full CRUD), Segments read/write
     ✗ Cannot write settings
@@ -84,10 +90,32 @@ Capabilities:
 Typical Users:  bu1 Developers, Support engineers, Analysts
 
 --------------------------------------------------------------------------------
-1.3 bu2-Admins / bu2-Users
+1.3 bu2-Admins
 --------------------------------------------------------------------------------
-Same structure as bu1 equivalents, scoped to "bu2-" security context prefix.
-bu2-Admins also uses Standard User + Admin Features (not Admin User).
+Name:           bu2-Admins
+Base Policy:    Standard User + Admin Features (custom)
+Description:    Administrators for Business Unit 2. Same capabilities as
+                bu1-Admins, scoped to "bu2-" security context prefix.
+
+Data Scope:     All data where dt.security_context starts with "bu2-"
+
+Capabilities:   Same as bu1-Admins, scoped to bu2-*
+
+Typical Users:  bu2 DevOps leads, Platform engineers, SRE managers
+
+--------------------------------------------------------------------------------
+1.4 bu2-Users
+--------------------------------------------------------------------------------
+Name:           bu2-Users
+Base Policy:    Standard User (Dynatrace default)
+Description:    Users for Business Unit 2. Same capabilities as bu1-Users,
+                scoped to "bu2-" security context prefix.
+
+Data Scope:     All data where dt.security_context starts with "bu2-"
+
+Capabilities:   Same as bu1-Users, scoped to bu2-*
+
+Typical Users:  bu2 Developers, Support engineers, Analysts
 
 
 ================================================================================
@@ -95,7 +123,8 @@ SECTION 2: APPLICATION LEVEL GROUPS
 ================================================================================
 
 These groups provide access ONLY to a specific application within a BU.
-More restrictive than BU-level groups.
+More restrictive than BU-level groups. Access spans all configured stages
+(prod, dev) within the application.
 
 --------------------------------------------------------------------------------
 2.1 petclinic01-Admins
@@ -110,14 +139,15 @@ Data Scope:     PetClinic 01 data across active stages:
                 - bu1-dev-petclinic01-*
 
 Capabilities:
-    ✓ View petclinic01 monitoring data across all stages
+    ✓ View petclinic01 monitoring data across all stages (prod, dev)
     ✓ View entities scoped to petclinic01
     ✓ Read/write settings for petclinic01 entities (scoped by boundary)
     ✓ Create and manage SLOs
     ✓ Automation read + limited write (SIMPLE type via Standard User)
     ✓ Documents (full CRUD), Davis AI, Segments
-    ✗ Cannot access other applications
+    ✗ Cannot access other applications or BUs
     ✗ Cannot create full automation workflows (BU Admin only)
+    ✗ No extensions or OpenPipeline write (BU Admin only)
 
 Typical Users:  PetClinic 01 team leads, Application owners
 
@@ -131,13 +161,13 @@ Description:    Users for PetClinic 01 (bu1). Read-only data access.
 Data Scope:     Same as petclinic01-Admins
 
 Capabilities:
-    ✓ View petclinic01 monitoring data across all stages
+    ✓ View petclinic01 monitoring data across all stages (prod, dev)
     ✓ View entities scoped to petclinic01
-    ✓ Read settings (global - all settings, unscoped)
+    ✓ Read settings (global — all settings, unscoped, via Standard User)
     ✓ SLO read, Automation read, Davis AI, Documents, Segments
     ✗ Cannot write settings
     ✗ Cannot manage SLOs or automation
-    ✗ Cannot access other applications
+    ✗ Cannot access other applications or BUs
 
 Typical Users:  PetClinic 01 developers, Testers, Support staff
 
@@ -175,23 +205,23 @@ Typical Users:  PetClinic 02 developers, Testers, Support staff
 SECTION 3: GROUP SUMMARY TABLE
 ================================================================================
 
-+----------------------+--------------+--------------------+----------------+--------+
-| Group                | Base Policy  | Data Scope         | Settings Write | SLOs   |
-+----------------------+--------------+--------------------+----------------+--------+
-| bu1-Admins           | Std+AdminFt  | Full bu1           | Scoped (BU)    | Write  |
-| bu1-Users            | Std User     | Full bu1           | None (read ok) | Read   |
-| bu2-Admins           | Std+AdminFt  | Full bu2           | Scoped (BU)    | Write  |
-| bu2-Users            | Std User     | Full bu2           | None (read ok) | Read   |
-+----------------------+--------------+--------------------+----------------+--------+
-| petclinic01-Admins   | Std User     | bu1-*-petclinic01  | Scoped (PC01)  | Write  |
-| petclinic01-Users    | Std User     | bu1-*-petclinic01  | None (read ok) | Read   |
-| petclinic02-Admins   | Std User     | bu2-*-petclinic02  | Scoped (PC02)  | Write  |
-| petclinic02-Users    | Std User     | bu2-*-petclinic02  | None (read ok) | Read   |
-+----------------------+--------------+--------------------+----------------+--------+
++----------------------+---------------+---------------------+----------------+--------+
+| Group                | Base Policy   | Data Scope          | Settings Write | SLOs   |
++----------------------+---------------+---------------------+----------------+--------+
+| bu1-Admins           | Std+AdminFt   | Full bu1            | Scoped (BU)    | Write  |
+| bu1-Users            | Std User      | Full bu1            | None (read ok) | Read   |
+| bu2-Admins           | Std+AdminFt   | Full bu2            | Scoped (BU)    | Write  |
+| bu2-Users            | Std User      | Full bu2            | None (read ok) | Read   |
++----------------------+---------------+---------------------+----------------+--------+
+| petclinic01-Admins   | Std User      | bu1-*-petclinic01   | Scoped (PC01)  | Write  |
+| petclinic01-Users    | Std User      | bu1-*-petclinic01   | None (read ok) | Read   |
+| petclinic02-Admins   | Std User      | bu2-*-petclinic02   | Scoped (PC02)  | Write  |
+| petclinic02-Users    | Std User      | bu2-*-petclinic02   | None (read ok) | Read   |
++----------------------+---------------+---------------------+----------------+--------+
 
 Note: Std+AdminFt = Standard User + Admin Features (custom policy).
       Settings READ is global for all groups (Standard User grants unconditional
-      settings:objects:read). Only WRITE is scoped via boundaries.
+      settings:objects:read). Only WRITE is meaningfully scoped via boundaries.
 
 
 ================================================================================

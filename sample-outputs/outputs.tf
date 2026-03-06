@@ -1,7 +1,7 @@
 # ============================================================================
 # Outputs
 # ============================================================================
-# These outputs provide useful information after terraform apply
+# These outputs provide useful information after terraform apply.
 # ============================================================================
 
 # ------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ output "application_user_groups" {
 # ------------------------------------------------------------------------------
 
 output "bu_boundaries" {
-  description = "Map of BU-level boundary IDs"
+  description = "Map of BU-level data boundary IDs"
   value = {
     for key, boundary in dynatrace_iam_policy_boundary.bu_boundary : key => {
       id   = boundary.id
@@ -62,10 +62,30 @@ output "bu_boundaries" {
   }
 }
 
+output "bu_settings_boundaries" {
+  description = "Map of BU-level settings boundary IDs"
+  value = {
+    for key, boundary in dynatrace_iam_policy_boundary.bu_settings_boundary : key => {
+      id   = boundary.id
+      name = boundary.name
+    }
+  }
+}
+
 output "application_boundaries" {
-  description = "Map of Application-level boundary IDs"
+  description = "Map of Application-level data boundary IDs"
   value = {
     for key, boundary in dynatrace_iam_policy_boundary.application_boundary : key => {
+      id   = boundary.id
+      name = boundary.name
+    }
+  }
+}
+
+output "application_settings_boundaries" {
+  description = "Map of Application-level settings boundary IDs"
+  value = {
+    for key, boundary in dynatrace_iam_policy_boundary.application_settings_boundary : key => {
       id   = boundary.id
       name = boundary.name
     }
@@ -79,6 +99,7 @@ output "application_boundaries" {
 output "custom_policies" {
   description = "Map of custom policy IDs"
   value = {
+    admin_features        = dynatrace_iam_policy.admin_features.id
     scoped_data_read      = dynatrace_iam_policy.scoped_data_read.id
     scoped_settings_read  = dynatrace_iam_policy.scoped_settings_read.id
     scoped_settings_write = dynatrace_iam_policy.scoped_settings_write.id
@@ -96,6 +117,6 @@ output "iam_summary" {
     business_units     = keys(var.business_units)
     applications       = keys(var.applications)
     groups_created     = length(dynatrace_iam_group.bu_admins) + length(dynatrace_iam_group.bu_users) + length(dynatrace_iam_group.application_admins) + length(dynatrace_iam_group.application_users)
-    boundaries_created = length(dynatrace_iam_policy_boundary.bu_boundary) + length(dynatrace_iam_policy_boundary.application_boundary) + length(dynatrace_iam_policy_boundary.application_settings_boundary) + length(dynatrace_iam_policy_boundary.bu_settings_boundary)
+    boundaries_created = length(dynatrace_iam_policy_boundary.bu_boundary) + length(dynatrace_iam_policy_boundary.bu_settings_boundary) + length(dynatrace_iam_policy_boundary.application_boundary) + length(dynatrace_iam_policy_boundary.application_settings_boundary)
   }
 }

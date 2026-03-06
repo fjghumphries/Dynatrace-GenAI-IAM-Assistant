@@ -2,16 +2,16 @@
 # Policy Bindings - Application-Level Groups
 # ============================================================================
 # Bindings for application-specific groups with more restrictive access.
-# These users only have access to data within their specific application.
+# These users only have access to data within their specific application
+# across all configured stages.
 #
-# Security Context Pattern: bu-stage-application-component (LOWERCASE)
-# Application users access: bu-*-application-* (all stages within application)
+# Security Context Pattern: bu-stage-application (LOWERCASE)
+# Application users access all stages enumerated in their application boundary.
 # ============================================================================
 
 # ------------------------------------------------------------------------------
-# Application Admin Bindings
-# Can change settings scoped to their application
-# Read access to all application data across stages
+# Application Admin Bindings — Resource 1: Data Access
+# Read access to application data + system events
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_policy_bindings_v2" "application_admins_data" {
@@ -26,13 +26,12 @@ resource "dynatrace_iam_policy_bindings_v2" "application_admins_data" {
   }
 
   # Scoped data read using templated policy
-  # Parameter uses BU- prefix but boundary restricts to specific application
+  # Boundary restricts to specific application+stages; parameter uses BU prefix
   # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
     boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
     parameters = {
-      # Using BU prefix in parameter, boundary further restricts to application
       "security_context_prefix" = lower("${each.value.bu}-")
     }
   }
@@ -43,20 +42,52 @@ resource "dynatrace_iam_policy_bindings_v2" "application_admins_data" {
     boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
   }
 
-  # System events (not scoped by security_context typically)
+  # Default data read policies with application boundary — required for bucket-level access.
+  # Scoped Grail Data Read (WHERE clause) alone does NOT grant bucket permissions.
+  # See LESSONS_LEARNED.md #19.
+  policy {
+    id         = data.dynatrace_iam_policy.read_logs.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_metrics.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_spans.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_events.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_bizevents.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  # System events (not scoped by security_context — applies globally)
   policy {
     id = data.dynatrace_iam_policy.read_system_events.id
   }
 }
 
-# Settings bindings for application admins - separate resource
+# ------------------------------------------------------------------------------
+# Application Admin Bindings — Resource 2: Settings Write + SLO Management
+# Separate resource required because settings boundaries differ from data boundaries.
+# ------------------------------------------------------------------------------
+
 resource "dynatrace_iam_policy_bindings_v2" "application_admins_settings" {
   for_each = var.applications
 
   group   = dynatrace_iam_group.application_admins[each.key].id
   account = var.account_id
 
-  # Scoped settings write - can modify settings for entities in their application
+  # Scoped settings write — can modify settings for entities in their application
   # lower() ensures bucket names are always lowercase
   policy {
     id         = dynatrace_iam_policy.scoped_settings_write.id
@@ -67,6 +98,7 @@ resource "dynatrace_iam_policy_bindings_v2" "application_admins_settings" {
   }
 
   # SLO management (adds write on top of Standard User read)
+  # BU Admins get SLO write via Admin Features; this is for Application Admins
   policy {
     id = dynatrace_iam_policy.slo_manager.id
   }
@@ -75,10 +107,9 @@ resource "dynatrace_iam_policy_bindings_v2" "application_admins_settings" {
 }
 
 # ------------------------------------------------------------------------------
-# Application User Bindings
-# Read-only access to data within their specific application
-# Most restrictive access pattern
-# Standard User provides: documents, SLO read, automation read, segments, Davis AI
+# Application User Bindings — Resource 1: Read-Only Data Access
+# Most restrictive access pattern — read-only, application-scoped only.
+# Standard User provides: documents, SLO read, automation read, segments, Davis AI.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_policy_bindings_v2" "application_users_data" {
@@ -88,7 +119,6 @@ resource "dynatrace_iam_policy_bindings_v2" "application_users_data" {
   account = var.account_id
 
   # Standard User access for basic environment features
-  # Includes: documents, SLOs read, automation read, segments, Davis AI
   policy {
     id = data.dynatrace_iam_policy.standard_user.id
   }
@@ -109,7 +139,35 @@ resource "dynatrace_iam_policy_bindings_v2" "application_users_data" {
     boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
   }
 
-  # Read-only settings access
+  # Default data read policies with application boundary — required for bucket-level access.
+  # See LESSONS_LEARNED.md #19.
+  policy {
+    id         = data.dynatrace_iam_policy.read_logs.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_metrics.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_spans.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_events.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  policy {
+    id         = data.dynatrace_iam_policy.read_bizevents.id
+    boundaries = [dynatrace_iam_policy_boundary.application_boundary[each.key].id]
+  }
+
+  # Scoped settings read — additive over Standard User's global read,
+  # but retained for explicitness
   policy {
     id         = dynatrace_iam_policy.scoped_settings_read.id
     boundaries = [dynatrace_iam_policy_boundary.application_settings_boundary[each.key].id]

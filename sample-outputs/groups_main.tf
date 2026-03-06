@@ -14,12 +14,13 @@
 #   - {Application}-Users: Read-only access to application data
 #
 # Note: Using lifecycle ignore_changes for permissions because we manage
-# permissions via dynatrace_iam_policy_bindings_v2 resource
+# permissions via dynatrace_iam_policy_bindings_v2 resource.
 # ============================================================================
 
 # ------------------------------------------------------------------------------
 # BU-Level Admin Groups
-# These users have full access to all data and settings within their BU
+# These users have full access to all data and settings within their BU.
+# Settings write is scoped via boundary — cannot modify entities outside their BU.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_group" "bu_admins" {
@@ -35,8 +36,8 @@ resource "dynatrace_iam_group" "bu_admins" {
 
 # ------------------------------------------------------------------------------
 # BU-Level User Groups
-# These users have read access to all data within their BU
-# No write access to settings
+# These users have read access to all data within their BU.
+# No write access to settings.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_group" "bu_users" {
@@ -52,8 +53,8 @@ resource "dynatrace_iam_group" "bu_users" {
 
 # ------------------------------------------------------------------------------
 # Application-Level Admin Groups
-# These users can change settings for entities within their application
-# Scoped by security_context to their specific application
+# These users can change settings for entities within their application.
+# Scoped by security_context to their specific application across all stages.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_group" "application_admins" {
@@ -69,8 +70,7 @@ resource "dynatrace_iam_group" "application_admins" {
 
 # ------------------------------------------------------------------------------
 # Application-Level User Groups
-# These users have read-only access to data within their application
-# Most restrictive access - only their specific application
+# Most restrictive access — read-only, only their specific application.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_group" "application_users" {

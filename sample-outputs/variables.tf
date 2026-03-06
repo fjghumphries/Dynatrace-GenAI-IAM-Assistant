@@ -25,7 +25,6 @@ variable "environment_id" {
 
 # ------------------------------------------------------------------------------
 # Business Units (BUs)
-# Using sample BU names - in production these would be actual BU identifiers
 # ------------------------------------------------------------------------------
 variable "business_units" {
   description = "Map of Business Units with their configuration"
@@ -49,8 +48,9 @@ variable "business_units" {
 }
 
 # ------------------------------------------------------------------------------
-# Applications (previously called deployments/landscapes)
-# Each application belongs to a specific BU
+# Applications
+# Each application belongs to a specific BU.
+# Security context format: {bu}-{stage}-{name}  e.g. bu1-prod-petclinic01
 # ------------------------------------------------------------------------------
 variable "applications" {
   description = "Map of Applications with their configuration"
@@ -60,10 +60,6 @@ variable "applications" {
     bu          = string
     stages      = list(string)
   }))
-  # Each application belongs to exactly one BU, so no BU prefix needed in keys.
-  # The 'name' field is the actual application identifier used in security contexts.
-  # Security context format: {bu}-{stage}-{name}  e.g. bu1-prod-petclinic01
-  # Note: lower() is kept as a safety net in boundaries/bindings.
   default = {
     "petclinic01" = {
       name        = "petclinic01"
@@ -86,7 +82,7 @@ variable "applications" {
 variable "stages" {
   description = "List of deployment stages"
   type        = list(string)
-  default     = ["prod", "dev"]  # test not used yet; add when needed
+  default     = ["prod", "dev"]
 }
 
 # ------------------------------------------------------------------------------

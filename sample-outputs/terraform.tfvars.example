@@ -1,13 +1,9 @@
 # ============================================================================
-# Example Terraform Variables File
+# Terraform Variable Overrides
 # ============================================================================
 # Copy this file to terraform.tfvars and fill in your actual values.
 # NEVER commit terraform.tfvars to version control if it contains secrets.
 # ============================================================================
-
-# ------------------------------------------------------------------------------
-# Required Configuration
-# ------------------------------------------------------------------------------
 
 # Your Dynatrace Account UUID (found in Account Management)
 # Example: "12345678-1234-1234-1234-123456789abc"
@@ -17,39 +13,31 @@ account_id = "YOUR_ACCOUNT_UUID"
 # Example: "abc12345" from https://abc12345.live.dynatrace.com
 environment_id = "YOUR_ENVIRONMENT_ID"
 
-# ------------------------------------------------------------------------------
-# Optional: Override Business Units (defaults are defined in variables.tf)
-# ------------------------------------------------------------------------------
-# Note: All values should be lowercase to match Grail bucket naming requirements.
-# The lower() function is retained as a safety net in boundaries/bindings.
+# Optional: Override defaults from variables.tf
 # business_units = {
 #   "bu1" = {
 #     name         = "bu1"
-#     description  = "Your First Business Unit"
-#     applications = ["app_a", "app_b"]
+#     description  = "Business Unit 1"
+#     applications = ["petclinic01"]
 #   }
 #   "bu2" = {
 #     name         = "bu2"
-#     description  = "Your Second Business Unit"
-#     applications = ["app_c", "app_d"]
+#     description  = "Business Unit 2"
+#     applications = ["petclinic02"]
 #   }
 # }
-# Security context output: bu1-prod-app_a-api (always lowercase)
 
-# ------------------------------------------------------------------------------
-# Optional: Override Applications (defaults are defined in variables.tf)
-# ------------------------------------------------------------------------------
 # applications = {
-#   "app_a" = {
-#     name        = "app_a"
-#     description = "Your Application A"
+#   "petclinic01" = {
+#     name        = "petclinic01"
+#     description = "PetClinic 01 - belongs to bu1"
 #     bu          = "bu1"
-#     stages      = ["prod", "dev", "test"]
+#     stages      = ["prod", "dev"]
 #   }
-#   # ... additional applications
+#   "petclinic02" = {
+#     name        = "petclinic02"
+#     description = "PetClinic 02 - belongs to bu2"
+#     bu          = "bu2"
+#     stages      = ["prod", "dev"]
+#   }
 # }
-
-# ------------------------------------------------------------------------------
-# Optional: Override Tags
-# ------------------------------------------------------------------------------
-# tags = ["managed-by-terraform", "your-custom-tag"]

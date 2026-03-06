@@ -9,6 +9,11 @@ IMPORTANT: Bindings for the same group are split into separate
 dynatrace_iam_policy_bindings_v2 resources when they use different
 boundary types (storage vs settings cannot share the same binding).
 
+Generated for:
+  Business Units : bu1, bu2
+  Applications   : petclinic01 (bu1), petclinic02 (bu2)
+  Stages         : prod, dev
+
 ================================================================================
 SECTION 1: BOUNDARIES REFERENCE
 ================================================================================
@@ -16,42 +21,53 @@ SECTION 1: BOUNDARIES REFERENCE
 Boundaries define WHERE policies apply. They restrict access based on
 dt.security_context using startsWith() for hierarchical matching.
 
-Total boundaries (sample config): 8 (2 BU×2 types + 2 Application×2 types) | At scale: 4,020
+Total boundaries (this config): 8
+  - 2 BU data boundaries       (1 × 2 BUs)
+  - 2 BU settings boundaries   (1 × 2 BUs)
+  - 2 Application data boundaries       (1 × 2 Applications)
+  - 2 Application settings boundaries   (1 × 2 Applications)
+
+At scale (10 BUs, 2000 Applications): 4,020 boundaries
 
 --------------------------------------------------------------------------------
 1.1 BU Data Boundaries (storage:dt.security_context)
 --------------------------------------------------------------------------------
 Name: Boundary-bu1
 Query: storage:dt.security_context startsWith "bu1-";
-Covers: All stages and applications in bu1
+Covers: All stages and applications in bu1 (future-proof)
 
 Name: Boundary-bu2
 Query: storage:dt.security_context startsWith "bu2-";
+Covers: All stages and applications in bu2 (future-proof)
 
 --------------------------------------------------------------------------------
 1.2 BU Settings Boundaries (settings:dt.security_context)
 --------------------------------------------------------------------------------
 Name: Boundary-bu1-Settings
 Query: settings:dt.security_context startsWith "bu1-";
-Covers: Settings on entities with bu1 security context
+Covers: Settings on any entity with bu1 security context
 
 Name: Boundary-bu2-Settings
 Query: settings:dt.security_context startsWith "bu2-";
+Covers: Settings on any entity with bu2 security context
 
 --------------------------------------------------------------------------------
 1.3 Application Data Boundaries (storage:dt.security_context)
 --------------------------------------------------------------------------------
 Name: Boundary-petclinic01
-Query:
+Query (dynamically generated from configured stages):
   storage:dt.security_context startsWith "bu1-prod-petclinic01";
   storage:dt.security_context startsWith "bu1-dev-petclinic01";
 Covers: All active stages for PetClinic 01 (bu1)
 
 Name: Boundary-petclinic02
-Query:
+Query (dynamically generated from configured stages):
   storage:dt.security_context startsWith "bu2-prod-petclinic02";
   storage:dt.security_context startsWith "bu2-dev-petclinic02";
 Covers: All active stages for PetClinic 02 (bu2)
+
+Note: Application boundaries are dynamically generated from each.value.stages.
+Adding/removing a stage in variables.tf automatically updates the boundary.
 
 --------------------------------------------------------------------------------
 1.4 Application Settings Boundaries (settings:dt.security_context)
@@ -77,9 +93,11 @@ bounded Scoped Settings Write policy.
 
 Admin User default policy is intentionally NOT used because it grants
 unconditional settings:objects:write that cannot be scoped.
+See LESSONS_LEARNED.md #16 for full details.
 
 --------------------------------------------------------------------------------
 2.1 bu1-Admins - Binding Resource 1 (data + features)
+Resource: dynatrace_iam_policy_bindings_v2.bu_admins_data["bu1"]
 --------------------------------------------------------------------------------
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Policy: Standard User (default)                                             │
@@ -90,15 +108,23 @@ unconditional settings:objects:write that cannot be scoped.
 │ Boundary: None                                                              │
 │ Result: Full automation admin, SLO write, extensions write, OpenPipeline,   │
 │         App Engine — NO settings:objects:write                               │
+│ WARNING: These are ENVIRONMENT-WIDE — cannot be scoped (LL#20)              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Scoped Grail Data Read (templated)                                  │
 │ Boundary: Boundary-bu1                                                      │
 │ Parameters: security_context_prefix = "bu1-"                                │
-│ Result: Read logs, metrics, spans, events, bizevents for all bu1 data       │
+│ Result: Record-level filtering for bu1 data (defense-in-depth)              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Read Entities (default)                                             │
 │ Boundary: Boundary-bu1                                                      │
 │ Result: Read entity data scoped to bu1                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Policy: Read Logs (default) + Boundary: Boundary-bu1                        │
+│ Policy: Read Metrics (default) + Boundary: Boundary-bu1                     │
+│ Policy: Read Spans (default) + Boundary: Boundary-bu1                       │
+│ Policy: Read Events (default) + Boundary: Boundary-bu1                      │
+│ Policy: Read BizEvents (default) + Boundary: Boundary-bu1                   │
+│ Result: Bucket-level access for all Grail tables, scoped to bu1 (LL#19)     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Read System Events (default)                                        │
 │ Boundary: None                                                              │
@@ -106,7 +132,8 @@ unconditional settings:objects:write that cannot be scoped.
 └─────────────────────────────────────────────────────────────────────────────┘
 
 --------------------------------------------------------------------------------
-2.2 bu1-Admins - Binding Resource 2 (settings)
+2.2 bu1-Admins - Binding Resource 2 (settings write)
+Resource: dynatrace_iam_policy_bindings_v2.bu_admins_settings["bu1"]
 --------------------------------------------------------------------------------
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Policy: Scoped Settings Write (templated)                                   │
@@ -116,7 +143,7 @@ unconditional settings:objects:write that cannot be scoped.
 │ Note: This is the ONLY source of settings:objects:write for BU Admins       │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-bu2-Admins: Same structure with Boundary-bu2 and Boundary-bu2-Settings.
+bu2-Admins: Same structure — Boundary-bu2 / Boundary-bu2-Settings, prefix "bu2-"
 
 
 ================================================================================
@@ -124,10 +151,11 @@ SECTION 3: BU USER BINDINGS
 ================================================================================
 
 BU Users use Standard User which already includes SLO read, automation read,
-Davis AI, documents, segments. Single binding resource needed.
+Davis AI, documents, segments. Single binding resource is sufficient.
 
 --------------------------------------------------------------------------------
 3.1 bu1-Users - Binding Resource 1 (data + settings read)
+Resource: dynatrace_iam_policy_bindings_v2.bu_users_data["bu1"]
 --------------------------------------------------------------------------------
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Policy: Standard User (default)                                             │
@@ -137,20 +165,27 @@ Davis AI, documents, segments. Single binding resource needed.
 │ Policy: Scoped Grail Data Read (templated)                                  │
 │ Boundary: Boundary-bu1                                                      │
 │ Parameters: security_context_prefix = "bu1-"                                │
-│ Result: Read all bu1 monitoring data                                        │
+│ Result: Record-level filtering for bu1 data (defense-in-depth)              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Read Entities (default)                                             │
 │ Boundary: Boundary-bu1                                                      │
 │ Result: Read entity data scoped to bu1                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
+│ Policy: Read Logs (default) + Boundary: Boundary-bu1                        │
+│ Policy: Read Metrics (default) + Boundary: Boundary-bu1                     │
+│ Policy: Read Spans (default) + Boundary: Boundary-bu1                       │
+│ Policy: Read Events (default) + Boundary: Boundary-bu1                      │
+│ Policy: Read BizEvents (default) + Boundary: Boundary-bu1                   │
+│ Result: Bucket-level access for all Grail tables, scoped to bu1 (LL#19)     │
+├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Scoped Settings Read (templated)                                    │
 │ Boundary: Boundary-bu1-Settings                                             │
 │ Parameters: security_context_prefix = "bu1-"                                │
 │ Note: Standard User already grants global settings read. This is            │
-│       additive but does not restrict - kept for explicitness.               │
+│       additive but does not restrict — kept for explicitness.               │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-bu2-Users: Same structure with Boundary-bu2 and Boundary-bu2-Settings.
+bu2-Users: Same structure — Boundary-bu2 / Boundary-bu2-Settings, prefix "bu2-"
 
 
 ================================================================================
@@ -159,6 +194,7 @@ SECTION 4: APPLICATION ADMIN BINDINGS
 
 --------------------------------------------------------------------------------
 4.1 petclinic01-Admins - Binding Resource 1 (data)
+Resource: dynatrace_iam_policy_bindings_v2.application_admins_data["petclinic01"]
 --------------------------------------------------------------------------------
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Policy: Standard User (default)                                             │
@@ -168,11 +204,18 @@ SECTION 4: APPLICATION ADMIN BINDINGS
 │ Policy: Scoped Grail Data Read (templated)                                  │
 │ Boundary: Boundary-petclinic01                                              │
 │ Parameters: security_context_prefix = "bu1-"                                │
-│ Result: Read petclinic01 monitoring data only                               │
+│ Result: Record-level filtering for petclinic01 data (defense-in-depth)      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Read Entities (default)                                             │
 │ Boundary: Boundary-petclinic01                                              │
 │ Result: Read entity data scoped to petclinic01                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Policy: Read Logs (default) + Boundary: Boundary-petclinic01                │
+│ Policy: Read Metrics (default) + Boundary: Boundary-petclinic01             │
+│ Policy: Read Spans (default) + Boundary: Boundary-petclinic01               │
+│ Policy: Read Events (default) + Boundary: Boundary-petclinic01              │
+│ Policy: Read BizEvents (default) + Boundary: Boundary-petclinic01           │
+│ Result: Bucket-level access for Grail tables, scoped to petclinic01 (LL#19) │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Read System Events (default)                                        │
 │ Boundary: None                                                              │
@@ -181,6 +224,7 @@ SECTION 4: APPLICATION ADMIN BINDINGS
 
 --------------------------------------------------------------------------------
 4.2 petclinic01-Admins - Binding Resource 2 (settings + SLO write)
+Resource: dynatrace_iam_policy_bindings_v2.application_admins_settings["petclinic01"]
 --------------------------------------------------------------------------------
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Policy: Scoped Settings Write (templated)                                   │
@@ -193,73 +237,77 @@ SECTION 4: APPLICATION ADMIN BINDINGS
 │ Result: Create and manage SLOs (adds write on top of Standard User read)    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-petclinic02-Admins follows the same pattern:
-  Boundary-petclinic02 + Boundary-petclinic02-Settings, prefix "bu2-"
+petclinic02-Admins: Same structure — Boundary-petclinic02 / Boundary-petclinic02-Settings,
+  prefix "bu2-"
 
 
 ================================================================================
 SECTION 5: APPLICATION USER BINDINGS
 ================================================================================
 
-Single binding resource. Standard User covers SLO read, automation, Davis AI,
-documents, segments - no extra policies needed.
-
 --------------------------------------------------------------------------------
-5.1 petclinic01-Users - Binding Resource 1
+5.1 petclinic01-Users - Binding Resource 1 (read-only)
+Resource: dynatrace_iam_policy_bindings_v2.application_users_data["petclinic01"]
 --------------------------------------------------------------------------------
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Policy: Standard User (default)                                             │
 │ Boundary: None                                                              │
-│ Result: SLO read, automation read, Davis AI, documents, segments, etc.      │
+│ Result: Automation read, Davis AI, documents, segments, SLO read, etc.      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Scoped Grail Data Read (templated)                                  │
 │ Boundary: Boundary-petclinic01                                              │
 │ Parameters: security_context_prefix = "bu1-"                                │
-│ Result: Read petclinic01 monitoring data only                               │
+│ Result: Record-level filtering for petclinic01 data (defense-in-depth)      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Read Entities (default)                                             │
 │ Boundary: Boundary-petclinic01                                              │
 │ Result: Read entity data scoped to petclinic01                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
+│ Policy: Read Logs (default) + Boundary: Boundary-petclinic01                │
+│ Policy: Read Metrics (default) + Boundary: Boundary-petclinic01             │
+│ Policy: Read Spans (default) + Boundary: Boundary-petclinic01               │
+│ Policy: Read Events (default) + Boundary: Boundary-petclinic01              │
+│ Policy: Read BizEvents (default) + Boundary: Boundary-petclinic01           │
+│ Result: Bucket-level access for Grail tables, scoped to petclinic01 (LL#19) │
+├─────────────────────────────────────────────────────────────────────────────┤
 │ Policy: Scoped Settings Read (templated)                                    │
 │ Boundary: Boundary-petclinic01-Settings                                     │
 │ Parameters: security_context_prefix = "bu1-"                                │
-│ Note: Standard User already grants global settings read. Additive only.     │
+│ Note: Additive over Standard User's global settings read.                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-petclinic02-Users follows the same pattern:
-  Boundary-petclinic02 + Boundary-petclinic02-Settings, prefix "bu2-"
+petclinic02-Users: Same structure — Boundary-petclinic02 / Boundary-petclinic02-Settings,
+  prefix "bu2-"
 
 
 ================================================================================
-SECTION 6: BINDING SUMMARY MATRIX
+SECTION 6: RESOURCE COUNTS
 ================================================================================
 
-┌───────────────────────┬────────────┬───────────────┬──────────────┬─────────┐
-│ Group                 │ Base Policy│ Grail Data    │ Settings     │ SLOs    │
-│                       │            │ (+ boundary)  │ Write        │         │
-├───────────────────────┼────────────┼───────────────┼──────────────┼─────────┤
-│ bu1-Admins            │ Std+AdmFt  │ ✓ bu1 scope         │ ✓ bu1 scope  │ ✓ Write │
-│ bu1-Users             │ Std User   │ ✓ bu1 scope         │ Read only    │ Read    │
-│ bu2-Admins            │ Std+AdmFt  │ ✓ bu2 scope         │ ✓ bu2 scope  │ ✓ Write │
-│ bu2-Users             │ Std User   │ ✓ bu2 scope         │ Read only    │ Read    │
-├───────────────────────┼────────────┼─────────────────────┼──────────────┼─────────┤
-│ petclinic01-Admins    │ Std User   │ ✓ bu1-*-petclinic01 │ ✓ PC01 scope │ ✓ Write │
-│ petclinic01-Users     │ Std User   │ ✓ bu1-*-petclinic01 │ Read only    │ Read    │
-│ petclinic02-Admins    │ Std User   │ ✓ bu2-*-petclinic02 │ ✓ PC02 scope │ ✓ Write │
-│ petclinic02-Users     │ Std User   │ ✓ bu2-*-petclinic02 │ Read only    │ Read    │
-└───────────────────────┴────────────┴───────────────┴──────────────┴─────────┘
+dynatrace_iam_policy_bindings_v2 resources in this configuration:
 
-Std+AdmFt = Standard User + Admin Features (custom policy)
+  bu_admins_data      : 2  (one per BU)
+  bu_admins_settings  : 2  (one per BU)
+  bu_users_data       : 2  (one per BU)
+  application_admins_data    : 2  (one per Application)
+  application_admins_settings: 2  (one per Application)
+  application_users_data     : 2  (one per Application)
+  ─────────────────────────────────
+  Total binding resources    : 12
 
-Binding resource count per group type:
-  BU Admin:          2 resources (data binding + settings binding)
-  BU User:           1 resource  (data + settings read in one binding)
-  Application Admin: 2 resources (data binding + settings/SLO binding)
-  Application User:  1 resource  (data + settings read in one binding)
+Total Terraform resources (this config):
+  Policies (custom)   : 5
+  Policies (data src) : 10
+  Groups              : 8
+  Boundaries          : 8
+  Bindings            : 12
+  ─────────────────────────────────
+  Total               : ~43
+
+Note: Each binding resource now includes 5 additional default data read policies
+(Read Logs/Metrics/Spans/Events/BizEvents) for bucket-level access (LL#19).
 
 
 ================================================================================
 END OF BINDINGS DOCUMENT
 ================================================================================
-

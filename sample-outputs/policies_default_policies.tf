@@ -7,8 +7,8 @@
 #
 # Key Default Policies:
 # - Standard User: Basic environment access + run apps
-# - Read Logs/Metrics/Spans/Events/Entities: Grail data access
-# - Settings Reader/Writer: Settings API access
+# - Read Entities: Entity access (use with boundary)
+# - Read System Events: Audit and system event access
 # ============================================================================
 
 # ------------------------------------------------------------------------------

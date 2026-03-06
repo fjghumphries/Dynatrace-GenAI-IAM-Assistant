@@ -35,6 +35,7 @@
 # not have valid IAM permission identifiers in the current API.
 # Hub catalog browsing uses hub:catalog:read (already in Standard User).
 # ActiveGate management is typically done via environment-level API tokens.
+# See LESSONS_LEARNED.md #17 for details.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_policy" "admin_features" {
@@ -70,6 +71,8 @@ EOT
 # ------------------------------------------------------------------------------
 # Grants SLO write access for admins who don't need full admin privileges.
 # Standard User only has read - this adds write capability.
+# BU Admins get SLO write via Admin Features; this policy is only for
+# Application Admins who need SLO management without full admin access.
 # ------------------------------------------------------------------------------
 
 resource "dynatrace_iam_policy" "slo_manager" {
