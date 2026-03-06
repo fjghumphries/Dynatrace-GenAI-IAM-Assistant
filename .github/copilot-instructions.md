@@ -20,6 +20,10 @@ These MUST be kept in mind on every policy or binding change:
 
 3. **Boundaries only scope the permissions they apply to.** If a group has two bindings — one unbounded with broad permissions and one bounded with the same permissions — the unbounded binding wins. Boundaries are not group-level restrictions; they are per-binding restrictions.
 
+4. **Default data read policies are REQUIRED for Grail bucket access.** Custom policies with `WHERE storage:dt.security_context` conditions provide record-level filtering but do NOT grant the underlying bucket permission. You MUST also bind the Dynatrace default data read policies (`Read Logs`, `Read Metrics`, `Read Spans`, `Read Events`, `Read BizEvents`) with boundaries. Without them, users get "No bucket permissions for table". See `LESSONS_LEARNED.md` #19.
+
+5. **Only `storage:*` and `settings:*` permissions support security_context scoping.** Feature-level permissions (`automation:*`, `slo:*`, `extensions:*`, `openpipeline:*`, `app-engine:*`, `document:*`) are inherently environment-wide. Applying a boundary to them has NO effect. The Admin Features custom policy grants tenant-wide feature access by design. See `LESSONS_LEARNED.md` #20.
+
 ---
 
 ## Project Structure
@@ -46,7 +50,8 @@ When asked to generate a Terraform IAM configuration:
 
 - **Provider**: dynatrace-oss/dynatrace ~> 1.91
 - **IAM model**: Grail 3rd Gen only — no Management Zones, no `environment:roles:*`
-- **Security context format**: `BU-STAGE-APPLICATION-COMPONENT` (e.g. `BU1-PROD-PETCLINIC01-API`)
+- **Security context format**: `bu-stage-application-component` (lowercase, e.g. `bu1-prod-petclinic01-api`)
+- **Bucket names must be lowercase**: `lower()` is used in Terraform boundaries/bindings to enforce this
 - **IAM is additive**: permissions compound across bindings. Standard User grants unconditional `settings:objects:read` — settings read cannot be scoped via boundaries, only write can.
 - **Generated files** (inside `outputs/`):
   - `variables.tf` — BUs, applications, stages definitions

@@ -1,0 +1,43 @@
+# ============================================================================
+# Terraform Variable Overrides
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your actual values.
+# NEVER commit terraform.tfvars to version control if it contains secrets.
+# ============================================================================
+
+# Your Dynatrace Account UUID (found in Account Management)
+# Example: "12345678-1234-1234-1234-123456789abc"
+account_id = "YOUR_ACCOUNT_UUID"
+
+# Your Dynatrace Environment ID (the ID portion of your environment URL)
+# Example: "abc12345" from https://abc12345.live.dynatrace.com
+environment_id = "YOUR_ENVIRONMENT_ID"
+
+# Optional: Override defaults from variables.tf
+# business_units = {
+#   "bu1" = {
+#     name         = "bu1"
+#     description  = "Business Unit 1"
+#     applications = ["petclinic01"]
+#   }
+#   "bu2" = {
+#     name         = "bu2"
+#     description  = "Business Unit 2"
+#     applications = ["petclinic02"]
+#   }
+# }
+
+# applications = {
+#   "petclinic01" = {
+#     name        = "petclinic01"
+#     description = "PetClinic 01 - belongs to bu1"
+#     bu          = "bu1"
+#     stages      = ["prod", "dev"]
+#   }
+#   "petclinic02" = {
+#     name        = "petclinic02"
+#     description = "PetClinic 02 - belongs to bu2"
+#     bu          = "bu2"
+#     stages      = ["prod", "dev"]
+#   }
+# }

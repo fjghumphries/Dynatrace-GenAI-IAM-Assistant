@@ -539,3 +539,121 @@ The `Admin Features (No Settings Write)` custom policy originally included `hub:
 
 ### Key Takeaway
 Always validate permission identifiers against the IAM API before adding them to policies. The existence of a feature in the Dynatrace UI does not guarantee a corresponding IAM permission identifier exists. Use the validation endpoint to test before committing to Terraform.
+
+---
+
+## 18. All IAM Values Must Be Lowercase (Bucket Names, Tags, Keys, Stages)
+
+### Finding
+Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, all security context values used in IAM boundaries and binding parameters must also be lowercase. Primary_tags keys, host_group values, variable keys, and stage names should all be lowercase for consistency.
+
+### Solution
+All variable keys and values are defined in lowercase directly:
+
+- **Variable keys**: `"bu1"`, `"petclinic01"` (not `"BU1"`, `"PETCLINIC01"`)
+- **Variable values**: `name = "bu1"`, `bu = "bu1"`, `stages = ["prod", "dev"]`
+- **Primary tag keys**: `primary_tags.bu` (not `primary_tags.BU`)
+- **Host group values**: lowercase throughout
+- **Security context format**: `bu1-prod-petclinic01-api` (all lowercase)
+
+Terraform's `lower()` function is retained in boundaries and bindings as a safety net, but with all-lowercase keys it is effectively a no-op:
+
+- **Boundaries**: `lower(each.key)` — safety net
+- **Binding parameters**: `lower("${each.key}-")` — safety net
+
+Group names derive from the lowercase keys:
+- Group name: `bu1-Admins`, `petclinic01-Users`
+- Security context prefix: `bu1-`
+
+### Key Takeaway
+Define ALL values lowercase at the source (variable keys, stage names, tag keys, etc.) rather than relying solely on runtime conversion. Keep `lower()` as a defensive measure but do not depend on it as the primary mechanism. This ensures consistency across group names, bucket names, IAM conditions, and documentation.
+
+---
+
+## 19. Scoped Grail Data Read (WHERE Clause) Does NOT Grant Bucket Permissions — Default Read Policies Required
+
+### Finding
+A user assigned to both BU-Users and BU-Admins received **"No bucket permissions for table logs"** despite having the `Scoped Grail Data Read` templated policy bound with a BU boundary. The policy uses `WHERE storage:dt.security_context startsWith "bu1-"` but this alone does not grant **bucket-level access** to the underlying Grail tables.
+
+### Root Cause
+Grail has two permission layers:
+
+1. **Bucket-level permissions** — granted by the Dynatrace default data read policies (`Read Logs`, `Read Metrics`, `Read Spans`, `Read Events`, `Read BizEvents`). These carry the implicit "you may access this table" grant.
+2. **Record-level filtering** — the `WHERE` clause on `storage:dt.security_context` filters which records within the table the user can see.
+
+The `Scoped Grail Data Read` templated policy only provides layer 2 (record-level filtering). It contains `ALLOW storage:logs:read WHERE ...` which tells the IAM engine "allow reading logs that match this condition" — but the user also needs the **bucket-level grant** to even open the table. Without it, Grail rejects the request before any record-level filtering occurs.
+
+### Correct Approach
+Bind **both**:
+- The **default data read policies** (`Read Logs`, `Read Metrics`, etc.) **with boundaries** — these provide the bucket-level grant, scoped by boundary
+- The **Scoped Grail Data Read** templated policy (optional, for defense-in-depth) — adds explicit WHERE-clause-level filtering
+
+Since IAM is additive, having both is safe — the effective access is the union, but since both scope to the same prefix, the result is equivalent.
+
+### Fix Applied
+Added the following default policies with boundaries to **all** binding resources (BU Admins, BU Users, Application Admins, Application Users):
+- `Read Logs` — with BU or application data boundary
+- `Read Metrics` — with BU or application data boundary
+- `Read Spans` — with BU or application data boundary
+- `Read Events` — with BU or application data boundary
+- `Read BizEvents` — with BU or application data boundary
+
+The `Read Entities` policy was already bound with boundaries (it worked because entity access has different bucket mechanics). `Read System Events` remains unbounded (it's not scoped by security_context).
+
+### Key Takeaway
+**Custom policies with WHERE conditions provide record-level filtering but do NOT grant bucket access.** You must also bind the corresponding Dynatrace default data read policies (with boundaries for scoping) to grant the bucket-level permission. Always test with a real user after applying Terraform changes — `terraform apply` success does not mean effective permissions are correct.
+
+---
+
+## 20. Admin Features Permissions Are Inherently Tenant-Wide — Cannot Be Scoped by Security Context
+
+### Finding
+The `Admin Features (No Settings Write)` custom policy contains feature-level permissions: automation admin, SLO management, extensions management, OpenPipeline configuration, and App Engine management. A customer expected these to be scoped to their BU via boundaries, but **these permission namespaces do not support `dt.security_context` conditions**.
+
+### Root Cause
+Only two permission namespaces support `dt.security_context`-based scoping:
+- `storage:dt.security_context` — applies to `storage:*` permissions (logs, metrics, spans, events, entities, etc.)
+- `settings:dt.security_context` — applies to `settings:*` permissions (settings:objects:read/write)
+
+All other permission namespaces are **feature-level** and operate at the environment/tenant level:
+
+| Permission Namespace | Scope | Can Use security_context? |
+|---|---|---|
+| `storage:*` | Data-level | ✅ Yes |
+| `settings:*` | Entity-level | ✅ Yes |
+| `automation:*` | Environment-wide | ❌ No |
+| `slo:*` | Environment-wide | ❌ No |
+| `extensions:*` | Environment-wide | ❌ No |
+| `openpipeline:*` | Environment-wide | ❌ No |
+| `app-engine:*` | Environment-wide | ❌ No |
+| `document:*` | Environment-wide | ❌ No |
+
+Applying a boundary with `storage:dt.security_context` to an `automation:workflows:write` permission simply has **no effect** — the boundary condition doesn't match the permission namespace, so the permission becomes unconditional.
+
+### Impact on BU Admins
+BU Admins with the Admin Features policy can:
+- ✅ Read/write data scoped to their BU (via bounded data read + scoped settings write)
+- ⚠️ Create/edit/run/admin workflows **across the entire environment**
+- ⚠️ Create/edit SLOs **across the entire environment**
+- ⚠️ Install/write extensions **across the entire environment**
+- ⚠️ Write OpenPipeline configurations **across the entire environment**
+- ⚠️ Install/run/delete App Engine apps **across the entire environment**
+
+### Design Trade-Off
+This is an intentional trade-off in the current IAM model:
+- **Data isolation is strict**: BU Admins can only see and modify data/settings within their BU
+- **Feature access is shared**: BU Admins can manage automations, SLOs, and extensions tenant-wide
+
+This is acceptable for most organisations because:
+1. Automations and SLOs created by a BU admin can only trigger on data they can see (their BU scope), even though the automation object itself is visible tenant-wide
+2. Extensions and OpenPipeline are typically managed by a central platform team anyway
+
+### Alternative If Strict Feature Scoping Is Required
+If a customer does NOT want BU Admins to have tenant-wide feature access:
+1. **Remove** the `Admin Features` policy from BU Admin bindings
+2. **Create a central `Platform-Admins` group** with Admin Features for the platform team only
+3. BU Admins retain: Standard User + Scoped Data Read + Scoped Settings Write
+4. This means BU Admins lose: automation admin, SLO write, extensions write, OpenPipeline write, App Engine admin — but they keep data and settings access within their BU
+
+### Key Takeaway
+Boundaries and `dt.security_context` only scope `storage:*` and `settings:*` permissions. Feature-level permissions (`automation`, `slo`, `extensions`, `openpipeline`, `app-engine`) are inherently environment-wide. If a customer requires strict BU-level feature isolation, those permissions should be reserved for a central admin team, not assigned to BU-level groups.

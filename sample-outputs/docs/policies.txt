@@ -89,7 +89,7 @@ The parameter value is provided when binding the policy to a group.
 2.1 Scoped Grail Data Read
 --------------------------------------------------------------------------------
 Name:       Scoped Grail Data Read
-Parameter:  security_context_prefix (e.g., "BU1-" or "BU1-PROD-PETCLINIC01")
+Parameter:  security_context_prefix (e.g., "bu1-" or "bu1-prod-petclinic01")
 
 Policy Statement:
     ALLOW storage:logs:read 
@@ -120,7 +120,7 @@ Policy Statement:
       WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
 
 Used by:    All groups with different parameter values
-Example:    BU1-Admins uses parameter "BU1-" to access all BU1 data
+Example:    bu1-Admins uses parameter "bu1-" to access all bu1 data
 
 --------------------------------------------------------------------------------
 2.2 Scoped Settings Read

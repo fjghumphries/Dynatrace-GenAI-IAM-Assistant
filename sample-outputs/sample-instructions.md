@@ -27,8 +27,8 @@ Two levels of groups are created. Both levels have two roles. This is fixed — 
 
 | Level | Scope | Example group names |
 |---|---|---|
-| **BU** | All data within a Business Unit (all applications, all stages) | `BU1-Admins`, `BU1-Users` |
-| **Application** | Data within one application only (all stages within it) | `PETCLINIC01-Admins`, `PETCLINIC01-Users` |
+| **BU** | All data within a Business Unit (all applications, all stages) | `bu1-Admins`, `bu1-Users` |
+| **Application** | Data within one application only (all stages within it) | `petclinic01-Admins`, `petclinic01-Users` |
 
 ### Roles
 
@@ -49,25 +49,25 @@ To generate the Terraform configuration, replace the example values below with y
 <!-- ===================== CUSTOMER INPUT START ===================== -->
 
 Business Units:
-  - BU1 (applications: PETCLINIC01)
-  - BU2 (applications: PETCLINIC02)
+  - bu1 (applications: petclinic01)
+  - bu2 (applications: petclinic02)
 
 Stages active per application:
-  - PROD, DEV
+  - prod, dev
 
 Application-to-BU mapping:
-  - PETCLINIC01 → BU1
-  - PETCLINIC02 → BU2
+  - petclinic01 → bu1
+  - petclinic02 → bu2
 
 <!-- ===================== CUSTOMER INPUT END ======================= -->
 ```
 
-> Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier per application (e.g. `BU1-PETCLINIC` and `BU2-PETCLINIC`).
+> Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier per application (e.g. `bu1-petclinic` and `bu2-petclinic`).
 
 **Instructions:**
-1. Replace the BU names (BU1, BU2, ...) with real business unit identifiers.
-2. Replace the application names (PETCLINIC01, ...) with real application/deployment names.
-3. List all stages that apply (e.g. PROD, DEV, STAGING, TEST).
+1. Replace the BU names (bu1, bu2, ...) with real business unit identifiers.
+2. Replace the application names (petclinic01, ...) with real application/deployment names.
+3. List all stages that apply (e.g. prod, dev, staging, test).
 4. Ensure every application maps to exactly one BU.
 5. Once updated, ask GitHub Copilot to generate the configuration (see the project README for suggested prompts).
 
@@ -100,18 +100,19 @@ Tags use the `primary_tags.<name>` prefix. Planned tags:
 ### Format
 
 ```
-dt.security_context = BU-STAGE-APPLICATION-COMPONENT
+dt.security_context = bu-stage-application-component
 ```
 
 Examples:
-- `BU1-PROD-PETCLINIC01-API`
-- `BU2-DEV-PETCLINIC02-WEB`
+- `bu1-prod-petclinic01-api`
+- `bu2-dev-petclinic02-web`
 
 ### Rules
 
 - Security context **must always be populated** at ingest time — data without it cannot be properly scoped
+- Security context values **must be lowercase** — bucket names in Grail require lowercase
 - It is **not multi-value**
-- Use `startsWith()` for hierarchical scoping (e.g. all of BU1, or all of BU1-PROD)
+- Use `startsWith()` for hierarchical scoping (e.g. all of bu1, or all of bu1-prod)
 - Use exact match only when full precision is required
 
 ### Enrichment via OneAgent
@@ -120,11 +121,11 @@ Security context and primary tags are set directly on the host using `oneagentct
 
 ```bash
 sudo ./oneagentctl \
-  --set-host-group=PETCLINIC02 \
-  --set-host-property="primary_tags.BU=BU2" \
-  --set-host-property="primary_tags.stage=PROD" \
-  --set-host-property="primary_tags.application=PETCLINIC02" \
-  --set-host-property="dt.security_context=BU2-PROD-PETCLINIC02" \
+  --set-host-group=petclinic02 \
+  --set-host-property="primary_tags.bu=bu2" \
+  --set-host-property="primary_tags.stage=prod" \
+  --set-host-property="primary_tags.application=petclinic02" \
+  --set-host-property="dt.security_context=bu2-prod-petclinic02" \
   --restart-service
 ```
 
@@ -142,7 +143,7 @@ This sets:
 Segments are used for **filtering and visibility**, not security enforcement.
 
 - Based on primary grail fields and primary grail tags
-- Can combine conditions: `(segment1 OR segment2) AND stage == "PROD"`
+- Can combine conditions: `(segment1 OR segment2) AND stage == "prod"`
 - Segments are read-only to end users; managed centrally
 
 > **Critical**: IAM must NOT rely on segments for security enforcement. Security is enforced exclusively via `dt.security_context` in policy boundaries.
