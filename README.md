@@ -34,7 +34,7 @@ You fill in your Business Units, applications, and stages in [`instructions.md`]
 4. **Read before generating:**
    - [`instructions.md`](instructions.md) — IAM specification with a clearly marked **Customer Input** section
    - [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) — Accumulated gotchas and design decisions (23 entries as of March 2026)
-   - [`sample-outputs/`](sample-outputs/) — Complete working reference (2 BUs × 2 applications × 2 stages)
+   - [`sample-outputs/`](sample-outputs/) — Complete working reference (3 BUs × 3 applications × 2 stages)
 
 ---
 
@@ -65,7 +65,7 @@ You fill in your Business Units, applications, and stages in [`instructions.md`]
 |------|---------|
 | [`instructions.md`](instructions.md) | IAM specification file. Contains the group model, policy design rules, security context strategy, and a **Customer Input** section where you define your BUs, applications, and stages. |
 | [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | Living knowledge base of Dynatrace IAM gotchas, design decisions, and findings. Explains *why* the configuration is structured as it is. Read this before making manual changes. |
-| [`sample-outputs/`](sample-outputs/) | A complete, working Terraform configuration for 2 BUs × 2 applications × 2 stages. Use as a reference for expected structure and patterns. |
+| [`sample-outputs/`](sample-outputs/) | A complete, working Terraform configuration for 3 BUs × 3 applications × 2 stages. Use as a reference for expected structure and patterns. |
 | [`outputs/`](outputs/) | Where Copilot writes your generated Terraform files. Mirrors the structure of `sample-outputs/`. |
 
 ### The `docs/` Folder
@@ -118,24 +118,19 @@ The generated configuration implements a two-level, two-role group model:
 
 ### Step 1 — Edit `instructions.md`
 
-Open [`instructions.md`](instructions.md) and find the **Customer Input Required** section (marked with `CUSTOMER INPUT START` / `CUSTOMER INPUT END` comments). Replace the example values:
+Open [`instructions.md`](instructions.md) and edit **Section 1 — Customer Configuration**. Update the YAML blocks with your actual values:
 
-```text
-Business Units:
-  - FINANCE (applications: SAP01, SAP02)
-  - RETAIL  (applications: ECOMMERCE01, POS01)
+```yaml
+business_units:
+  finance:
+    applications: [sap01, sap02]
+  retail:
+    applications: [ecommerce01, pos01]
 
-Stages active per application:
-  - prod, staging, dev
-
-Application-to-BU mapping:
-  - SAP01       → FINANCE
-  - SAP02       → FINANCE
-  - ECOMMERCE01 → RETAIL
-  - POS01       → RETAIL
+stages: [prod, staging, dev]
 ```
 
-> Each application belongs to exactly one BU. If two BUs share an app name, use a unique identifier (e.g. `finance-sap` and `retail-sap`).
+> Each application belongs to exactly one BU. Application and BU names must be lowercase. If two BUs share an app name, use a unique identifier (e.g. `finance-sap` and `retail-sap`).
 
 ### Step 2 — Ask Copilot to Generate
 

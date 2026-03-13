@@ -1,124 +1,147 @@
-## 1. Objective
+# IAM Specification
 
-Assist in designing IAM policies and related Terraform configuration for a Dynatrace 3rd Gen (Grail) environment in a large enterprise.
-
-Goals:
-- Generate IAM using `dt.security_context` and Grail primary fields
-- Avoid 2nd-gen constructs (no Management Zones, no `environment:roles:*`)
-- Apply governance constraints defined by the central team
-- Keep custom policy count minimal — maximise use of Dynatrace default policies
+This file defines **what** to generate. For **how** to generate it, see `.github/copilot-instructions.md`. For gotchas and design rationale, see `LESSONS_LEARNED.md`.
 
 ---
 
-## 2. Group Model
+## 1. Customer Configuration
 
-Two levels of groups are created. Both levels have two roles. This is fixed — customers do not change the group structure, only the BU and application names they apply to.
+> **Edit this section with your environment details, then ask Copilot to generate the Terraform configuration.**
 
-### Levels
+### 1.1 Business Units & Applications
 
-| Level | Scope | Example group names |
-|---|---|---|
-| **BU** | All data within a Business Unit (all applications, all stages) | `bu1-Admins`, `bu1-Users` |
-| **Application** | Data within one application only (all stages within it) | `petclinic01-Admins`, `petclinic01-Users` |
+Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier (e.g. `bu1-petclinic`, `bu2-petclinic`).
 
-### Roles
-
-| Role | Base policy | Data access | Settings | SLO write |
-|---|---|---|---|---|
-| **Admins** (BU level) | Standard User + Admin Features (custom) | Scoped to BU | Write, scoped to BU | Yes (via Admin Features) |
-| **Users** (BU level) | Standard User | Scoped to BU | Read only (global) | No |
-| **Admins** (Application level) | Standard User + SLO Manager | Scoped to application | Write, scoped to application | Yes (via SLO Manager) |
-| **Users** (Application level) | Standard User | Scoped to application | Read only (global) | No |
-
-Remove any permissions related to the old openpipeline API and use the new settings pipeline. No user in the Admins or Users team should be able to change openpipeline routing or have access to pipeline group configuration writing. Admins should have access to openpipeline creation (but no routing write or pipeline group write perimssion)
-
-All users ("Admins" and "Users") need to be able to create Anomaly detectors (settings WHERE settings:schemaGroup = "group:anomaly-detection";)
-
-IMPORTANT! The Admin User default policy is intentionally NOT used for BU Admins because it grants unconditional `settings:objects:write` which cannot be scoped via boundaries. Instead, use a custom "Admin Features" policy that cherry-picks admin capabilities (automation admin, SLO write, extensions, OpenPipeline, App Engine, etc.) WITHOUT settings write. Settings write is granted separately via the bounded Scoped Settings Write templated policy.
-
-IMPORTANT! When deciding how to create policies, make sure you understand what is already included in the default policies. This is published here: https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/default-policies
-
-IMPORTANT! Always check Dynatrace documentation IAM Reference to understand valid permissions and conditions before creating policies: https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/iam-policy-reference
-
-### Customer Input Required
-
-> **⬇️ EDIT THIS SECTION with your BUs, applications, and stages, then ask Copilot to generate the Terraform configuration. ⬇️**
-
-To generate the Terraform configuration, replace the example values below with your actual environment details:
-
-```
-<!-- ===================== CUSTOMER INPUT START ===================== -->
-
-Business Units:
-  - bu1 (applications: petclinic01)
-  - bu2 (applications: petclinic02)
-
-Stages active per application:
-  - prod, dev
-
-Application-to-BU mapping:
-  - petclinic01 → bu1
-  - petclinic02 → bu2
-
-<!-- ===================== CUSTOMER INPUT END ======================= -->
+```yaml
+business_units:
+  bu1:
+    applications: [petclinic01]
+  bu2:
+    applications: [petclinic02]
+  bu3:
+    applications: [petclinic03]
 ```
 
-> Each application belongs to exactly one BU. If two BUs have apps with the same name, use a unique identifier per application (e.g. `bu1-petclinic` and `bu2-petclinic`).
+### 1.2 Stages
 
-**Instructions:**
-1. Replace the BU names (bu1, bu2, ...) with real business unit identifiers.
-2. Replace the application names (petclinic01, ...) with real application/deployment names.
-3. List all stages that apply (e.g. prod, dev, staging, test).
-4. Ensure every application maps to exactly one BU.
-5. Once updated, ask GitHub Copilot to generate the configuration (see the project README for suggested prompts).
+Stages active per application (same for all applications):
 
----
+```yaml
+stages: [prod, dev]
+```
 
-## 3. Core IAM Principles
-
-### 3.1 Primary Grail Fields
-
-These fields exist across all signals and are usable in IAM policy conditions:
-
-- `dt.security_context` — **primary enforcement field**
-- `dt.cost.costcenter`
-- `dt.cost.product`
-
-### 3.2 Primary Grail Tags (Customer-defined)
-
-Tags use the `primary_tags.<name>` prefix. Planned tags:
-- `primary_tags.bu`
-- `primary_tags.application`
-- `primary_tags.stage`
-- Possible future: tier, SOM, ownership team, criticality, component
-
-> **IAM note**: Primary tags may not be directly usable in IAM policy conditions. `dt.security_context` remains the only reliable IAM enforcement field.
-
----
-
-## 4. Security Context Strategy
-
-### Format
+### 1.3 Security Context Format
 
 ```
-dt.security_context = bu-stage-application-component
+dt.security_context = {bu}-{stage}-{application}-{component}
 ```
+
+All values **must be lowercase** (Grail bucket names require it).
 
 Examples:
 - `bu1-prod-petclinic01-api`
 - `bu2-dev-petclinic02-web`
 
-### Rules
+### 1.4 Primary Tags
 
-- Security context **must always be populated** at ingest time — data without it cannot be properly scoped
-- Security context values **must be lowercase** — bucket names in Grail require lowercase
-- It is **not multi-value**
-- Use `startsWith()` for hierarchical scoping (e.g. all of bu1, or all of bu1-prod)
-- Use exact match only when full precision is required
+Customer-defined tags set on hosts via `oneagentctl`. Used for filtering, segments, and DQL — **not** for IAM enforcement (only `dt.security_context` is used for IAM).
 
-### Enrichment via OneAgent
+```yaml
+primary_tags:
+  - primary_tags.bu
+  - primary_tags.application
+  - primary_tags.stage
+  # Possible future: tier, SOM, ownership team, criticality, component
+```
 
-Security context and primary tags are set directly on the host using `oneagentctl`. The OneAgent service must be stopped first (or use `--restart-service`).
+### 1.5 Additional Grail Fields
+
+These built-in fields exist across all signals and can be used in IAM policy conditions:
+
+- `dt.security_context` — **primary enforcement field**
+- `dt.cost.costcenter`
+- `dt.cost.product`
+
+---
+
+## 2. Group Model
+
+Two levels × two roles = **4 group types**. This structure is fixed — only the BU and application names change per customer.
+
+### 2.1 Groups Created
+
+| Level | Role | Group name pattern | Example |
+|---|---|---|---|
+| BU | Admins | `{bu}-Admins` | `bu1-Admins` |
+| BU | Users | `{bu}-Users` | `bu1-Users` |
+| Application | Admins | `{app}-Admins` | `petclinic01-Admins` |
+| Application | Users | `{app}-Users` | `petclinic01-Users` |
+
+### 2.2 Role Capabilities
+
+| Capability | BU Admins | BU Users | App Admins | App Users |
+|---|---|---|---|---|
+| **Base policy** | Standard User | Standard User | Standard User | Standard User |
+| **Data access** | Scoped to BU | Scoped to BU | Scoped to app | Scoped to app |
+| **Settings write** | Yes, scoped to BU | No | Yes, scoped to app | No |
+| **Settings read** | Global (via Standard User) | Global (via Standard User) | Global (via Standard User) | Global (via Standard User) |
+| **SLO write** | Yes (via Admin Features) | No | Yes (via SLO Manager) | No |
+| **Automation admin** | Yes (via Admin Features) | No | No | No |
+| **Extensions write** | Yes (via Admin Features) | No | No | No |
+| **OpenPipeline write** | Yes (see §3.2) | No | No | No |
+| **Anomaly detection write** | Yes (see §3.3) | Yes (see §3.3) | Yes (see §3.3) | Yes (see §3.3) |
+
+---
+
+## 3. Policy Design Rules
+
+### 3.1 Admin Features Policy (BU Admins only)
+
+A **custom** policy that replaces the Admin User default policy. Cherry-picks admin capabilities **without** `settings:objects:write`:
+
+- `automation:workflows:write, admin`
+- `automation:calendars:write`
+- `automation:rules:write`
+- `slo:slos:write`
+- `extensions:definitions:write, configurations:write`
+- `app-engine:apps:install, run, delete`
+
+Settings write is granted separately via the bounded **Scoped Settings Write** templated policy.
+
+> **Why not Admin User?** Admin User grants unconditional `settings:objects:write` which **cannot** be scoped via boundaries. IAM is additive — the most permissive grant always wins.
+
+### 3.2 OpenPipeline Access
+
+Use **Settings 2.0 schemas**, not the old `openpipeline:configurations:*` API.
+
+**Granted** (BU Admins only) — pipeline creation/editing per signal:
+```
+settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"
+```
+Applied for all 13 signal types:
+`bizevents`, `davis.events`, `davis.problems`, `events`, `events.sdlc`, `events.security`, `logs`, `metrics`, `security.events`, `spans`, `system.events`, `user.events`, `usersessions`.
+
+**Not granted** (reserved for central platform team):
+- `builtin:openpipeline.<signal>.routing` — routing decisions
+- `builtin:openpipeline.<signal>.pipeline-groups` — pipeline group configuration
+
+### 3.3 Anomaly Detection Write
+
+**All** group types (Admins and Users at both levels) get:
+```
+settings:objects:write WHERE settings:schemaGroup = "group:anomaly-detection"
+```
+Bound **without boundaries** — the `schemaGroup` condition is the scope control.
+
+### 3.4 SLO Manager Policy (Application Admins only)
+
+A custom policy granting `slo:slos:write`. BU Admins already get this via Admin Features (§3.1), so this policy exists only for Application Admins.
+
+---
+
+## 4. Security Context Enrichment
+
+Security context is set **directly on the host** via `oneagentctl` — not derived from tags via OpenPipeline. This guarantees `dt.security_context` is present from first ingest.
 
 ```bash
 sudo ./oneagentctl \
@@ -130,10 +153,9 @@ sudo ./oneagentctl \
   --restart-service
 ```
 
-This sets:
-- `host-group` — used for OneAgent configuration grouping (separate from IAM)
-- `primary_tags.*` — custom tags for filtering, segments, and DQL (not directly usable in IAM policies)
-- `dt.security_context` — the **IAM enforcement field**; must match the canonical format exactly
-
-> **Note**: `dt.security_context` is set explicitly here rather than derived. This is the most reliable approach — derivation from tags requires OpenPipeline and introduces a dependency on the enrichment pipeline being in place.
-
+Key points:
+- `--restart-service` is **required** — without it, changes are not applied
+- `host-group` controls OneAgent configuration grouping (separate from IAM)
+- `primary_tags.*` are for filtering/DQL only — not usable in IAM policies
+- `dt.security_context` must match the format in §1.3 exactly
+- `startsWith()` is used for hierarchical scoping (e.g. all of `bu1-`, or `bu1-prod-`)

@@ -2,6 +2,9 @@
 # Dynatrace IAM Generator - gitignore
 # ============================================================================
 
+# Old/backup specification files
+instructions.older_version
+
 # Secrets and credentials
 .env
 .env.*
