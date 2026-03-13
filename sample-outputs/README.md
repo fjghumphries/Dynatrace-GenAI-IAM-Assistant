@@ -8,8 +8,8 @@ This Terraform configuration manages IAM for a Dynatrace Grail (3rd Gen) environ
 
 | Dimension | Value |
 |---|---|
-| Business Units | bu1, bu2 |
-| Applications | petclinic01 (bu1), petclinic02 (bu2) |
+| Business Units | bu1, bu2, bu3 |
+| Applications | petclinic01 (bu1), petclinic02 (bu2), petclinic03 (bu3) |
 | Stages | prod, dev |
 | Security context format | `bu-stage-application-component` (lowercase) |
 
@@ -17,17 +17,17 @@ This Terraform configuration manages IAM for a Dynatrace Grail (3rd Gen) environ
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Policies (13)                                               │
+│ Policies (14)                                               │
 │  8 Default │ 2 Templated │ 4 Custom (incl. OpenPipeline)  │
 ├─────────────────────────────────────────────────────────────┤
-│ Boundaries (8)                                              │
-│  2 BU Data │ 2 BU Settings │ 2 App Data │ 2 App Settings   │
+│ Boundaries (12)                                             │
+│  3 BU Data │ 3 BU Settings │ 3 App Data │ 3 App Settings   │
 ├─────────────────────────────────────────────────────────────┤
-│ Groups (8)                                                  │
-│  2 BU Admins │ 2 BU Users │ 2 App Admins │ 2 App Users     │
+│ Groups (12)                                                 │
+│  3 BU Admins │ 3 BU Users │ 3 App Admins │ 3 App Users     │
 ├─────────────────────────────────────────────────────────────┤
-│ Bindings (8) — ONE per group                                │
-│  2 BU Admin │ 2 BU User │ 2 App Admin │ 2 App User         │
+│ Bindings (12) — ONE per group                               │
+│  3 BU Admin │ 3 BU User │ 3 App Admin │ 3 App User         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,20 +49,20 @@ This Terraform configuration manages IAM for a Dynatrace Grail (3rd Gen) environ
 5. **Scoped Data Read at BU level only** — at app level, no single `startsWith` prefix covers one app across stages; boundaries on default read policies handle scoping
 6. **All values lowercase** — Grail bucket names require lowercase (Lesson #18)
 7. **Anomaly Detection Write for all users** — schemaGroup-scoped settings write so all groups can create anomaly detectors
-8. **OpenPipeline via Settings 2.0** — `openpipeline:configurations:*` (old API) removed; pipeline write granted via `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"`. Routing and pipeline-group write never granted (Lesson #22)
+8. **OpenPipeline via Settings 2.0** — `openpipeline:configurations:*` (old API) removed; pipeline write granted via `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"`. Routing and pipeline-group write never granted (Lesson #23)
 
 ## File Structure
 
 | File | Description |
 |---|---|
 | `variables.tf` | BUs, applications, stages, account config |
-| `boundaries_main.tf` | 8 boundary resources (4 types × 2) |
+| `boundaries_main.tf` | 12 boundary resources (4 types × 3) |
 | `policies_default_policies.tf` | 8 default policy data sources |
 | `policies_templated_policies.tf` | 2 parameterised policies |
 | `policies_custom_policies.tf` | 4 custom policies (Admin Features, OpenPipeline Mgmt, Anomaly Detection Write, SLO Manager) |
-| `groups_main.tf` | 8 group resources (4 types × 2) |
-| `bindings_bu_bindings.tf` | 4 BU binding resources |
-| `bindings_application_bindings.tf` | 4 application binding resources |
+| `groups_main.tf` | 12 group resources (4 types × 3) |
+| `bindings_bu_bindings.tf` | 6 BU binding resources (3 BUs × 2 roles) |
+| `bindings_application_bindings.tf` | 6 application binding resources (3 apps × 2 roles) |
 | `outputs.tf` | Group IDs, policy IDs, boundary IDs, summary |
 | `main.tf` | Configuration header |
 | `provider.tf` | Dynatrace provider config |
@@ -74,19 +74,19 @@ This Terraform configuration manages IAM for a Dynatrace Grail (3rd Gen) environ
 |---|---|
 | Policies (data sources) | 8 |
 | Policies (created) | 6 |
-| Boundaries | 8 |
-| Groups | 8 |
-| Bindings | 8 |
-| **Total** | **38** |
+| Boundaries | 12 |
+| Groups | 12 |
+| Bindings | 12 |
+| **Total** | **50** |
 
 ## Usage
 
 ```bash
-# Set environment variables
+# Set environment variables (includes TF_VAR_* so no -var flags needed)
 source .env
 
 # Initialise and apply
 terraform init
-terraform plan -var="account_id=$DT_ACCOUNT_ID" -var="environment_id=enc67105"
-terraform apply -var="account_id=$DT_ACCOUNT_ID" -var="environment_id=enc67105"
+terraform plan
+terraform apply
 ```
