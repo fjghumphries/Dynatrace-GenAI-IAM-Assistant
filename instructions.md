@@ -30,6 +30,10 @@ Two levels of groups are created. Both levels have two roles. This is fixed — 
 | **Admins** (Application level) | Standard User + SLO Manager | Scoped to application | Write, scoped to application | Yes (via SLO Manager) |
 | **Users** (Application level) | Standard User | Scoped to application | Read only (global) | No |
 
+Remove any permissions related to the old openpipeline API and use the new settings pipeline. No user in the Admins or Users team should be able to change openpipeline routing or have access to pipeline group configuration writing. Admins should have access to openpipeline creation (but no routing write or pipeline group write perimssion)
+
+All users ("Admins" and "Users") need to be able to create Anomaly detectors (settings WHERE settings:schemaGroup = "group:anomaly-detection";)
+
 IMPORTANT! The Admin User default policy is intentionally NOT used for BU Admins because it grants unconditional `settings:objects:write` which cannot be scoped via boundaries. Instead, use a custom "Admin Features" policy that cherry-picks admin capabilities (automation admin, SLO write, extensions, OpenPipeline, App Engine, etc.) WITHOUT settings write. Settings write is granted separately via the bounded Scoped Settings Write templated policy.
 
 IMPORTANT! When deciding how to create policies, make sure you understand what is already included in the default policies. This is published here: https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/default-policies

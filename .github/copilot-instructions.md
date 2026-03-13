@@ -8,6 +8,9 @@ IMPORTANT! When deciding how to create policies, make sure you understand what i
 
 IMPORTANT! Always check Dynatrace documentation IAM Reference to understand valid permissions and conditions before creating policies: https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/iam-policy-reference
 
+IMPORTANT! Refer to the [Settings 2.0 - Available Schemas](https://docs.dynatrace.com/docs/dynatrace-api/environment-api/settings/schemas) when you need to understand all available settings schemas.
+
+
 ---
 
 ## Critical IAM Gotchas
@@ -23,6 +26,8 @@ These MUST be kept in mind on every policy or binding change:
 4. **Default data read policies are REQUIRED for Grail bucket access.** Custom policies with `WHERE storage:dt.security_context` conditions provide record-level filtering but do NOT grant the underlying bucket permission. You MUST also bind the Dynatrace default data read policies (`Read Logs`, `Read Metrics`, `Read Spans`, `Read Events`, `Read BizEvents`) with boundaries. Without them, users get "No bucket permissions for table". See `LESSONS_LEARNED.md` #19.
 
 5. **Only `storage:*` and `settings:*` permissions support security_context scoping.** Feature-level permissions (`automation:*`, `slo:*`, `extensions:*`, `openpipeline:*`, `app-engine:*`, `document:*`) are inherently environment-wide. Applying a boundary to them has NO effect. The Admin Features custom policy grants tenant-wide feature access by design. See `LESSONS_LEARNED.md` #20.
+
+6. **One `dynatrace_iam_policy_bindings_v2` resource per group — multiple resources overwrite each other.** The bindings resource manages ALL bindings for a group as an atomic unit. If you create two binding resources for the same group (e.g., one for data policies and one for settings policies), the second **overwrites** the first — users lose all policies from the first resource and get 403 errors. Consolidate ALL policies for a group into a SINGLE binding resource. Different policy blocks within the same resource CAN have different boundary types. See `LESSONS_LEARNED.md` #21.
 
 ---
 

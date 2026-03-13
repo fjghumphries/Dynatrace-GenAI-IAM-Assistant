@@ -128,6 +128,9 @@ Dynatrace maintains default policies that stay up-to-date with platform changes.
 
 Refer to the [Default Policies documentation](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/default-policies) and the [IAM Policy Reference](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/iam-policy-reference) (also linked in `.github/copilot-instructions.md`).
 
+Refer to the [Settings 2.0 - Available Schemas](https://docs.dynatrace.com/docs/dynatrace-api/environment-api/settings/schemas) when you need to understand all available settings schemas.
+(also linked in `.github/copilot-instructions.md`).
+
 ### Standard User Includes (as of March 2026)
 ```
 // Documents - FULL CRUD
@@ -500,6 +503,78 @@ Never bind a default policy that contains `settings:objects:write` without a bou
 
 ---
 
+## 21. dynatrace_iam_policy_bindings_v2 Manages ALL Bindings Per Group — Multiple Resources Overwrite Each Other
+
+### Finding
+When using multiple `dynatrace_iam_policy_bindings_v2` resources for the **same group** (e.g., one for data policies and another for settings policies), the **last resource applied overwrites all previous bindings**. Users end up with only the policies from the last binding resource, causing 403 errors when accessing the environment.
+
+### Symptoms
+- Users in the group get 403 Forbidden when accessing Dynatrace
+- Only policies from one of the binding resources appear in Account Management
+- `terraform apply` shows changes on every run (resources keep getting modified)
+- Group shows only "Scoped Settings Write" when it should also have Standard User, data read policies, etc.
+
+### Root Cause
+The `dynatrace_iam_policy_bindings_v2` resource is designed to manage **all policy bindings for a group as an atomic unit**. It's not additive — each resource declaration represents the **complete** set of bindings for that group. If you have two resources targeting the same group:
+
+```hcl
+# BAD: These two resources target the same group — second overwrites first!
+resource "dynatrace_iam_policy_bindings_v2" "bu_admins_data" {
+  group = dynatrace_iam_group.bu_admins["bu1"].id
+  # ... data policies ...
+}
+
+resource "dynatrace_iam_policy_bindings_v2" "bu_admins_settings" {
+  group = dynatrace_iam_group.bu_admins["bu1"].id  # SAME GROUP!
+  # ... settings policies ...
+  depends_on = [dynatrace_iam_policy_bindings_v2.bu_admins_data]
+}
+```
+
+Even with `depends_on`, the second resource replaces all bindings set by the first.
+
+### Correct Approach
+**Consolidate all policies into a single binding resource per group**, even if policies use different boundary types:
+
+```hcl
+# GOOD: Single resource with ALL policies for the group
+resource "dynatrace_iam_policy_bindings_v2" "bu_admins" {
+  group = dynatrace_iam_group.bu_admins["bu1"].id
+  
+  # Feature policies (no boundary)
+  policy { id = data.dynatrace_iam_policy.standard_user.id }
+  policy { id = dynatrace_iam_policy.admin_features.id }
+  
+  # Data policies (storage boundary)
+  policy {
+    id         = dynatrace_iam_policy.scoped_data_read.id
+    boundaries = [dynatrace_iam_policy_boundary.bu_boundary["bu1"].id]
+    parameters = { "security_context_prefix" = "bu1-" }
+  }
+  
+  # Settings policies (settings boundary) — CAN coexist in same resource!
+  policy {
+    id         = dynatrace_iam_policy.scoped_settings_write.id
+    boundaries = [dynatrace_iam_policy_boundary.bu_settings_boundary["bu1"].id]
+    parameters = { "security_context_prefix" = "bu1-" }
+  }
+}
+```
+
+Different `policy` blocks within the same resource **can** have different boundary types (storage vs settings). The limitation is one binding **resource** per group, not one boundary type per resource.
+
+### Resolution
+- Merged `bu_admins_data` + `bu_admins_settings` into single `bu_admins` resource
+- Merged `bu_users_data` into single `bu_users` resource  
+- Merged `application_admins_data` + `application_admins_settings` into single `application_admins` resource
+- Merged `application_users_data` into single `application_users` resource
+- Updated binding count from 12 to 8 resources (one per group)
+
+### Key Takeaway
+**One `dynatrace_iam_policy_bindings_v2` resource per group.** Never split a group's bindings across multiple resources — they will overwrite each other. All policies, regardless of boundary type, must be declared in a single binding resource for each group.
+
+---
+
 ## 17. Not All Permission Identifiers Are Valid — Validate Before Creating Policies
 
 ### Finding
@@ -544,40 +619,11 @@ Always validate permission identifiers against the IAM API before adding them to
 
 ## 18. All IAM Values Must Be Lowercase (Bucket Names, Tags, Keys, Stages)
 
-<<<<<<< HEAD
 ### Finding
 Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, all security context values used in IAM boundaries and binding parameters must also be lowercase. Primary_tags keys, host_group values, variable keys, and stage names should all be lowercase for consistency.
-=======
-### Discovery
-Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, and primary_tags, host_group, and other fields should be consistent, ALL IAM-related values must be lowercase throughout the configuration.
-
-### Problem
-Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, all security context values used in IAM boundaries and binding parameters must also be lowercase. Additionally, primary_tags keys, host_group values, variable keys, and stage names should all be lowercase for consistency and to avoid case-mismatch issues.
->>>>>>> 51bb6e0def3667b7b7589876a37177b267557baf
 
 ### Solution
 All variable keys and values are defined in lowercase directly:
-
-- **Variable keys**: `"bu1"`, `"petclinic01"` (not `"BU1"`, `"PETCLINIC01"`)
-- **Variable values**: `name = "bu1"`, `bu = "bu1"`, `stages = ["prod", "dev"]`
-- **Primary tag keys**: `primary_tags.bu` (not `primary_tags.BU`)
-- **Host group values**: lowercase throughout
-- **Security context format**: `bu1-prod-petclinic01-api` (all lowercase)
-
-Terraform's `lower()` function is retained in boundaries and bindings as a safety net, but with all-lowercase keys it is effectively a no-op:
-
-- **Boundaries**: `lower(each.key)` — safety net
-- **Binding parameters**: `lower("${each.key}-")` — safety net
-
-Group names derive from the lowercase keys:
-- Group name: `bu1-Admins`, `petclinic01-Users`
-- Security context prefix: `bu1-`
-
-### Key Takeaway
-Define ALL values lowercase at the source (variable keys, stage names, tag keys, etc.) rather than relying solely on runtime conversion. Keep `lower()` as a defensive measure but do not depend on it as the primary mechanism. This ensures consistency across group names, bucket names, IAM conditions, and documentation.
-<<<<<<< HEAD
-
----
 
 ## 19. Scoped Grail Data Read (WHERE Clause) Does NOT Grant Bucket Permissions — Default Read Policies Required
 
@@ -666,5 +712,53 @@ If a customer does NOT want BU Admins to have tenant-wide feature access:
 
 ### Key Takeaway
 Boundaries and `dt.security_context` only scope `storage:*` and `settings:*` permissions. Feature-level permissions (`automation`, `slo`, `extensions`, `openpipeline`, `app-engine`) are inherently environment-wide. If a customer requires strict BU-level feature isolation, those permissions should be reserved for a central admin team, not assigned to BU-level groups.
-=======
->>>>>>> 51bb6e0def3667b7b7589876a37177b267557baf
+
+## 22. SchemaGroup-Scoped Settings Write for Cross-Cutting Features
+
+### Finding
+Some settings features (like anomaly detection) need to be writable by ALL users — not just Admins. Rather than granting broad `settings:objects:write`, use the `settings:schemaGroup` condition to limit write access to specific schema groups.
+
+### Implementation
+A custom policy "Anomaly Detection Write" grants:
+```
+ALLOW settings:objects:write
+  WHERE settings:schemaGroup = "group:anomaly-detection";
+```
+
+This policy is bound to ALL 4 group types (BU Admins, BU Users, App Admins, App Users) **without boundaries**, because:
+1. The `schemaGroup` condition already limits what schemas can be written
+2. Anomaly detectors are a cross-cutting monitoring feature all teams need
+3. `settings:objects:read` is already granted unconditionally via Standard User
+
+### Key Takeaway
+When a specific settings feature needs to be accessible to all users (not just Admins), use `settings:schemaGroup` conditions to create narrowly-scoped write policies. This avoids granting broad Scoped Settings Write to User groups while still enabling the specific feature. The pattern can be reused for other schema groups if needed.
+
+---
+
+## 23. OpenPipeline: Migrated from `openpipeline:*` API to Settings 2.0 `builtin:openpipeline.*` Schemas
+
+### Finding
+The old `openpipeline:configurations:read, openpipeline:configurations:write` permissions belong to the legacy OpenPipeline IAM API. OpenPipeline configuration is now managed via Settings 2.0 under the `builtin:openpipeline.*` schema namespace. Using the old permissions is incorrect for environments on the new Settings pipeline.
+
+### Design Decision
+- **Removed** from Admin Features: `ALLOW openpipeline:configurations:read, openpipeline:configurations:write;`
+- **Added** new "OpenPipeline Management" custom policy using `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"` for each signal type
+- **Intentionally excluded**: `.routing` and `.pipeline-groups` schemas — these are structural/architectural decisions reserved for central platform admins
+- **Only BU Admins** receive this policy — application admins do not need OpenPipeline management
+
+### Schema Structure Per Signal
+Each signal (logs, metrics, spans, events, bizevents, etc.) has 5 subschemas:
+- `.pipelines` — Individual pipeline definitions ✅ ALLOWED for BU Admins
+- `.ingest-sources` — Ingest source configuration (not granted to BU Admins)
+- `.data-forwarding` — Data forwarding configuration (not granted to BU Admins)
+- `.routing` — Pipeline routing rules ❌ NOT granted (explicit design decision)
+- `.pipeline-groups` — Pipeline group definitions ❌ NOT granted (explicit design decision)
+
+### Signals Covered
+bizevents, davis.events, davis.problems, events, events.sdlc, events.security, logs, metrics, security.events, spans, system.events, user.events, usersessions (13 total)
+
+### Read Access
+`settings:objects:read` is unconditional via Standard User — all users already have read access to OpenPipeline configuration schemas. No additional grant needed for read.
+
+### Key Takeaway
+Migrate from `openpipeline:configurations:*` (legacy IAM API) to `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"` (Settings 2.0). Never grant `.routing` or `.pipeline-groups` write to BU-level groups. The `settings:schemaId` condition provides fine-grained control at the individual schema level.
