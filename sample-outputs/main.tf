@@ -1,14 +1,11 @@
 # ============================================================================
-# Main Configuration - Module Composition
+# Dynatrace IAM Configuration — Grail 3rd Gen
 # ============================================================================
-# This file brings together all the IAM components.
+# Generated: 2026-03-06
+# BUs:          bu1, bu2
+# Applications: petclinic01 (bu1), petclinic02 (bu2)
+# Stages:       prod, dev
 #
-# Configuration is split across:
-# - boundaries_main.tf          : Policy boundary definitions
-# - policies_default_policies.tf: References to Dynatrace default policies
-# - policies_templated_policies.tf: Parameterized custom policies
-# - policies_custom_policies.tf : Specialized access policies
-# - groups_main.tf              : Group definitions
-# - bindings_bu_bindings.tf     : BU-level policy bindings
-# - bindings_application_bindings.tf: Application-level policy bindings
+# Security context: bu-stage-application-component (lowercase)
+# Enforcement:      dt.security_context via startsWith()
 # ============================================================================

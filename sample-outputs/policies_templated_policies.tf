@@ -1,124 +1,48 @@
 # ============================================================================
-# Custom Policies - Using Templating
+# Templated Policies (Parameterised)
 # ============================================================================
-# These policies use the bindParam templating feature for reusability.
-# A single policy template can be bound to multiple groups with different
-# parameter values, reducing policy management overhead.
+# Uses ${bindParam:...} so one policy serves many groups with different scopes.
 #
-# Security Context Format: bu-stage-application-component (LOWERCASE)
-# Uses startsWith() for hierarchical scoping as per governance rules.
-#
-# IMPORTANT:
-# - Parameters must be provided at binding time
-# - Changes to bound policies are only allowed if parameter set doesn't change
-# - Use comma-separated values for IN operator: "value1,value2,value3"
+# Lesson #3: Templates reduce management overhead at scale
+# Lesson #5: settings:objects:read is unconditional via Standard User
+#            — no Scoped Settings Read needed
 # ============================================================================
 
-# ------------------------------------------------------------------------------
-# Scoped Data Read Policy (Templated)
-# ------------------------------------------------------------------------------
-# This policy grants read access to Grail data scoped by security_context.
-# Use this instead of default "Read *" policies when you need scoped access.
-# Bind with boundary for additional restrictions.
-#
-# Parameters:
-#   - security_context_prefix: The dt.security_context prefix to match
-#
-# Example binding: security_context_prefix = "bu1-" for all bu1 data
-# Example binding: security_context_prefix = "bu1-prod-petclinic01" for specific scope
-# ------------------------------------------------------------------------------
-
+# --- Scoped Data Read ---
+# WHERE-clause filtering on security_context. Defense-in-depth alongside
+# default data read policies + boundaries (which provide bucket access).
 resource "dynatrace_iam_policy" "scoped_data_read" {
   name        = "Scoped Grail Data Read"
-  description = "Grants read access to Grail data scoped by security_context prefix. Use bindParam for the scope."
+  description = "Record-level filtering by security_context prefix."
   account     = var.account_id
   tags        = var.tags
 
   statement_query = <<-EOT
-// Scoped read access to all Grail tables based on security_context
-// The security_context_prefix parameter is provided at binding time
-
-// Logs access
-ALLOW storage:logs:read 
+ALLOW storage:logs:read
   WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// Metrics access  
-ALLOW storage:metrics:read 
+ALLOW storage:metrics:read
   WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// Spans/traces access
-ALLOW storage:spans:read 
+ALLOW storage:spans:read
   WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// Events access (excluding security events)
-ALLOW storage:events:read 
+ALLOW storage:events:read
   WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// Business events access
-ALLOW storage:bizevents:read 
+ALLOW storage:bizevents:read
   WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// Entities access
-ALLOW storage:entities:read 
-  WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// Smartscape access for topology
-ALLOW storage:smartscape:read 
-  WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-
-// User sessions and events (DEM data)
-ALLOW storage:user.sessions:read 
-  WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-ALLOW storage:user.events:read 
+ALLOW storage:entities:read
   WHERE storage:dt.security_context startsWith "$${bindParam:security_context_prefix}";
 EOT
 }
 
-# ------------------------------------------------------------------------------
-# Scoped Settings Read Policy (Templated)
-# ------------------------------------------------------------------------------
-# This policy grants read access to settings on entities with matching security_context.
-# NOTE: Standard User already grants unconditional settings:objects:read, so this
-# policy adds nothing for groups that already have Standard User. It is retained
-# for explicitness and potential use without Standard User.
-#
-# Parameters:
-#   - security_context_prefix: The dt.security_context prefix to match
-# ------------------------------------------------------------------------------
-
-resource "dynatrace_iam_policy" "scoped_settings_read" {
-  name        = "Scoped Settings Read"
-  description = "Grants read access to settings scoped by security_context. Use bindParam for the scope."
-  account     = var.account_id
-  tags        = var.tags
-
-  statement_query = <<-EOT
-// Read settings for entities with matching security_context
-ALLOW settings:objects:read 
-  WHERE settings:dt.security_context startsWith "$${bindParam:security_context_prefix}";
-ALLOW settings:schemas:read;
-EOT
-}
-
-# ------------------------------------------------------------------------------
-# Scoped Settings Write Policy (Templated) - For Admins
-# ------------------------------------------------------------------------------
-# This policy grants write access to settings on entities with matching security_context.
-# Should be assigned to admin groups for scoped configuration changes.
-# This is the ONLY source of settings:objects:write — Admin User is NOT used.
-#
-# Parameters:
-#   - security_context_prefix: The dt.security_context prefix to match
-# ------------------------------------------------------------------------------
-
+# --- Scoped Settings Write ---
+# ONLY source of settings:objects:write in this config.
+# Admin User default policy is intentionally NOT used (Lesson #16).
 resource "dynatrace_iam_policy" "scoped_settings_write" {
   name        = "Scoped Settings Write"
-  description = "Grants write access to settings scoped by security_context. For admins only."
+  description = "Settings write scoped by security_context. For admins only."
   account     = var.account_id
   tags        = var.tags
 
   statement_query = <<-EOT
-// Read and write settings for entities with matching security_context
 ALLOW settings:objects:read, settings:objects:write
   WHERE settings:dt.security_context startsWith "$${bindParam:security_context_prefix}";
 ALLOW settings:schemas:read;

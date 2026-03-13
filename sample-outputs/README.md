@@ -1,284 +1,92 @@
-# Dynatrace IAM Configuration
+# Dynatrace IAM Configuration — Grail 3rd Gen
 
-This directory contains the generated Terraform configuration for Dynatrace IAM
-resources, specifically designed for a Grail-based (3rd Gen) Dynatrace environment.
+Generated: 2026-03-13
 
-Generated from `instructions.md` on 2026-03-06.
+## Overview
 
-## Customer Input Summary
+This Terraform configuration manages IAM for a Dynatrace Grail (3rd Gen) environment using `dt.security_context` as the primary enforcement field.
 
-| Item | Value |
-|------|-------|
+| Dimension | Value |
+|---|---|
 | Business Units | bu1, bu2 |
 | Applications | petclinic01 (bu1), petclinic02 (bu2) |
 | Stages | prod, dev |
-| Security Context Format | `{bu}-{stage}-{application}-{component}` |
+| Security context format | `bu-stage-application-component` (lowercase) |
 
----
-
-## Architecture Overview
-
-### Security Context Strategy
-
-All IAM enforcement uses the `dt.security_context` field with the format:
+## Architecture
 
 ```
-bu-stage-application-component
+┌─────────────────────────────────────────────────────────────┐
+│ Policies (13)                                               │
+│  8 Default │ 2 Templated │ 4 Custom (incl. OpenPipeline)  │
+├─────────────────────────────────────────────────────────────┤
+│ Boundaries (8)                                              │
+│  2 BU Data │ 2 BU Settings │ 2 App Data │ 2 App Settings   │
+├─────────────────────────────────────────────────────────────┤
+│ Groups (8)                                                  │
+│  2 BU Admins │ 2 BU Users │ 2 App Admins │ 2 App Users     │
+├─────────────────────────────────────────────────────────────┤
+│ Bindings (8) — ONE per group                                │
+│  2 BU Admin │ 2 BU User │ 2 App Admin │ 2 App User         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Examples:
-- `bu1-prod-petclinic01-api`
-- `bu2-dev-petclinic02-web`
+## Group Capabilities
 
-> **Note**: Bucket names in Grail must be lowercase. The `lower()` function is
-> used in Terraform boundaries/bindings as a safety net. All values are defined
-> lowercase at source (see LESSONS_LEARNED.md #18).
+| Group | Base Policy | Data Access | Settings | SLO Write | OpenPipeline | Anomaly Detectors |
+|---|---|---|---|---|---|---|
+| BU Admins | Standard User + Admin Features | Scoped to BU | Write (scoped) | Yes | Pipeline write (no routing/groups) | Yes |
+| BU Users | Standard User | Scoped to BU | Read only (global) | No | Read only | Yes |
+| App Admins | Standard User + SLO Manager | Scoped to app | Write (scoped) | Yes | Read only | Yes |
+| App Users | Standard User | Scoped to app | Read only (global) | No | Read only | Yes |
 
-### Access Control Hierarchy
+## Key Design Decisions
 
-```
-Account Level
-├── BU-Level Groups
-│   ├── {bu}-Admins          → Full access to all BU data + scoped settings write
-│   └── {bu}-Users           → Read access to all BU data
-│
-└── Application-Level Groups
-    ├── {application}-Admins → Read data + write settings for application
-    └── {application}-Users  → Read-only access to application data
-```
+1. **Admin User NOT used** — grants unconditional `settings:objects:write` (Lesson #16)
+2. **ONE binding resource per group** — multiple resources overwrite each other (Lesson #21)
+3. **Default data read policies + boundaries** — required for Grail bucket access (Lesson #19)
+4. **Feature permissions are tenant-wide** — `automation:*`, `slo:*`, etc. cannot be scoped by `dt.security_context` (Lesson #20)
+5. **Scoped Data Read at BU level only** — at app level, no single `startsWith` prefix covers one app across stages; boundaries on default read policies handle scoping
+6. **All values lowercase** — Grail bucket names require lowercase (Lesson #18)
+7. **Anomaly Detection Write for all users** — schemaGroup-scoped settings write so all groups can create anomaly detectors
+8. **OpenPipeline via Settings 2.0** — `openpipeline:configurations:*` (old API) removed; pipeline write granted via `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"`. Routing and pipeline-group write never granted (Lesson #22)
 
-### Group Summary
+## File Structure
 
-| Group | Base Policy | Data Scope | Settings Write | SLOs |
-|-------|-------------|------------|----------------|------|
-| bu1-Admins | Std User + Admin Features | Full bu1 | Scoped to bu1 | Write |
-| bu1-Users | Standard User | Full bu1 | None (read ok) | Read |
-| bu2-Admins | Std User + Admin Features | Full bu2 | Scoped to bu2 | Write |
-| bu2-Users | Standard User | Full bu2 | None (read ok) | Read |
-| petclinic01-Admins | Standard User | bu1-*-petclinic01 | Scoped to app | Write |
-| petclinic01-Users | Standard User | bu1-*-petclinic01 | None (read ok) | Read |
-| petclinic02-Admins | Standard User | bu2-*-petclinic02 | Scoped to app | Write |
-| petclinic02-Users | Standard User | bu2-*-petclinic02 | None (read ok) | Read |
-
-### Policy Summary
-
-| Policy | Type | Used By |
-|--------|------|---------|
-| Standard User | Default | All groups |
-| Admin User | Default | **NOT USED** (grants unconditional settings write) |
-| Read Logs | Default | All groups (with boundary) |
-| Read Metrics | Default | All groups (with boundary) |
-| Read Spans | Default | All groups (with boundary) |
-| Read Events | Default | All groups (with boundary) |
-| Read BizEvents | Default | All groups (with boundary) |
-| Read Entities | Default | All groups (with boundary) |
-| Read System Events | Default | BU Admins, App Admins |
-| Scoped Grail Data Read | Templated | All groups (record-level filtering) |
-| Scoped Settings Read | Templated | User groups |
-| Scoped Settings Write | Templated | Admin groups |
-| Admin Features (No Settings Write) | Custom | BU Admins only (environment-wide!) |
-| SLO Manager | Custom | Application Admins only |
-
----
-
-## Files Structure
-
-```
-outputs/
-├── versions.tf                        # Terraform + provider version requirements
-├── provider.tf                        # Dynatrace provider configuration
-├── variables.tf                       # BU, application, stage definitions
-├── terraform.tfvars.example           # Example variable values
-├── outputs.tf                         # Output definitions
-├── main.tf                            # Configuration notes
-├── boundaries_main.tf                 # Policy boundary definitions (dynamic)
-├── policies_default_policies.tf       # References to Dynatrace default policies
-├── policies_templated_policies.tf     # Parameterized custom policies
-├── policies_custom_policies.tf        # Admin Features + SLO Manager policies
-├── groups_main.tf                     # Group definitions
-├── bindings_bu_bindings.tf            # BU-level policy bindings
-├── bindings_application_bindings.tf   # Application-level policy bindings
-└── docs/
-    ├── policies.txt                   # Human-readable policy reference
-    ├── groups.txt                     # Human-readable group reference
-    └── bindings.txt                   # Human-readable bindings reference
-```
-
----
+| File | Description |
+|---|---|
+| `variables.tf` | BUs, applications, stages, account config |
+| `boundaries_main.tf` | 8 boundary resources (4 types × 2) |
+| `policies_default_policies.tf` | 8 default policy data sources |
+| `policies_templated_policies.tf` | 2 parameterised policies |
+| `policies_custom_policies.tf` | 4 custom policies (Admin Features, OpenPipeline Mgmt, Anomaly Detection Write, SLO Manager) |
+| `groups_main.tf` | 8 group resources (4 types × 2) |
+| `bindings_bu_bindings.tf` | 4 BU binding resources |
+| `bindings_application_bindings.tf` | 4 application binding resources |
+| `outputs.tf` | Group IDs, policy IDs, boundary IDs, summary |
+| `main.tf` | Configuration header |
+| `provider.tf` | Dynatrace provider config |
+| `versions.tf` | Required providers |
 
 ## Resource Counts
 
 | Resource Type | Count |
-|---------------|------:|
-| Custom policies | 5 (2 custom + 3 templated) |
-| Default policy data sources | 10 |
-| Groups | 8 (4 BU + 4 Application) |
-| Boundaries | 8 (2 BU data + 2 BU settings + 2 App data + 2 App settings) |
-| Binding resources | 12 |
-| **Total Terraform resources** | **~43** |
-
-At scale (10 BUs, 2000 Applications): ~14,000 resources — 8 policies shared across all.
-
----
-
-## Key Design Decisions
-
-### 1. Admin User Default Policy is NOT Used
-
-The `Admin User` default policy grants unconditional `settings:objects:write`
-which **cannot** be scoped via boundaries (IAM is additive — the most permissive
-grant wins). Instead, we use:
-
-- **Standard User** — base feature access
-- **Admin Features (custom)** — admin capabilities without settings write
-- **Scoped Settings Write (templated)** — settings write, bounded to BU/app scope
-
-See LESSONS_LEARNED.md #16.
-
-### 2. Application Boundaries are Stage-Aware
-
-Application boundaries are dynamically generated from `each.value.stages` in
-Terraform. Adding a new stage to an application in `variables.tf` automatically
-updates the boundary — no manual boundary edits required.
-
-### 3. Settings Read is Global
-
-`Standard User` grants unconditional `settings:objects:read`. This cannot be
-restricted via boundaries (IAM is additive). Only **settings write** is
-meaningfully scoped. See LESSONS_LEARNED.md #5.
-
-### 4. Default Data Read Policies Required for Bucket Access
-
-The `Scoped Grail Data Read` templated policy (with WHERE clause) provides
-**record-level filtering** but does NOT grant **bucket-level access**. Users
-also need the Dynatrace default `Read Logs`, `Read Metrics`, `Read Spans`,
-`Read Events`, and `Read BizEvents` policies bound with boundaries. Without
-them, users get "No bucket permissions for table". See LESSONS_LEARNED.md #19.
-
-### 5. Admin Features Are Environment-Wide (Not Scopeable)
-
-Permissions in the `Admin Features` custom policy (`automation:*`, `slo:*`,
-`extensions:*`, `openpipeline:*`, `app-engine:*`) do NOT support
-`dt.security_context` conditions. Applying a boundary to them has no effect.
-BU Admins have tenant-wide access to these features by design. Only `storage:*`
-and `settings:*` permissions can be scoped. See LESSONS_LEARNED.md #20.
-
----
-
-## Prerequisites
-
-1. **Dynatrace Account** with appropriate permissions
-2. **OAuth Client** configured with these scopes:
-   - `account-idm-read` — View users and groups
-   - `account-idm-write` — Manage users and groups
-   - `iam-policies-management` — View and manage policies
-   - `account-env-read` — View environments
-
-3. **Environment Variables** set:
-   ```bash
-   export DT_CLIENT_ID="your-client-id"
-   export DT_CLIENT_SECRET="your-client-secret"
-   export DT_ACCOUNT_ID="your-account-uuid"
-   ```
-
----
+|---|---|
+| Policies (data sources) | 8 |
+| Policies (created) | 6 |
+| Boundaries | 8 |
+| Groups | 8 |
+| Bindings | 8 |
+| **Total** | **38** |
 
 ## Usage
 
-### 1. Initialize Terraform
-
 ```bash
-cd outputs
+# Set environment variables
+source .env
+
+# Initialise and apply
 terraform init
+terraform plan -var="account_id=$DT_ACCOUNT_ID" -var="environment_id=enc67105"
+terraform apply -var="account_id=$DT_ACCOUNT_ID" -var="environment_id=enc67105"
 ```
-
-### 2. Create Variable File
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your account_id and environment_id
-```
-
-### 3. Review Changes
-
-```bash
-terraform plan
-```
-
-### 4. Apply
-
-```bash
-terraform apply
-```
-
----
-
-## Customization
-
-### Adding a New Business Unit
-
-Add to `variables.tf` defaults or `terraform.tfvars`:
-
-```hcl
-business_units = {
-  "bu3" = {
-    name         = "bu3"
-    description  = "Business Unit 3"
-    applications = ["myapp"]
-  }
-  # ... existing BUs
-}
-```
-
-### Adding a New Application
-
-```hcl
-applications = {
-  "myapp" = {
-    name        = "myapp"
-    description = "My Application - belongs to bu3"
-    bu          = "bu3"
-    stages      = ["prod", "dev"]
-  }
-  # ... existing applications
-}
-```
-
-> Application map keys must be globally unique. If two BUs have apps with the
-> same name, prefix the key (e.g. `bu1_myapp`, `bu2_myapp`). The `name` field
-> drives the security context.
-
-### Adding a New Stage to an Application
-
-Simply add the stage to `stages` in the application definition:
-
-```hcl
-"petclinic01" = {
-  stages = ["prod", "dev", "staging"]  # boundary auto-updates
-}
-```
-
----
-
-## Troubleshooting
-
-**Boundary does not apply**: Ensure you're using the correct namespace:
-- `storage:dt.security_context` for Grail storage permissions
-- `settings:dt.security_context` for settings on entities
-
-**Permission Denied**: Verify OAuth client scopes, environment variables,
-and that `account_id` is the bare UUID (without `urn:dtaccount:` prefix).
-
-**Invalid permission identifier**: Not all permission strings that look logical
-are valid. Validate against the IAM API before adding to policies.
-See LESSONS_LEARNED.md #17.
-
----
-
-## References
-
-- [Dynatrace IAM Documentation](https://docs.dynatrace.com/docs/manage/identity-access-management)
-- [IAM Policy Reference](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/iam-policy-reference)
-- [Default Policies](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/default-policies)
-- [Policy Boundaries](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/manage-user-permissions-policies/iam-policy-boundaries)
-- [Terraform Provider](https://registry.terraform.io/providers/dynatrace-oss/dynatrace/latest/docs)

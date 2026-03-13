@@ -1,122 +1,55 @@
 # ============================================================================
 # Outputs
 # ============================================================================
-# These outputs provide useful information after terraform apply.
-# ============================================================================
-
-# ------------------------------------------------------------------------------
-# Group Outputs
-# ------------------------------------------------------------------------------
 
 output "bu_admin_groups" {
-  description = "Map of BU Admin group IDs"
-  value = {
-    for key, group in dynatrace_iam_group.bu_admins : key => {
-      id   = group.id
-      name = group.name
-    }
-  }
+  description = "BU Admin group IDs"
+  value       = { for k, v in dynatrace_iam_group.bu_admins : k => v.id }
 }
 
 output "bu_user_groups" {
-  description = "Map of BU User group IDs"
-  value = {
-    for key, group in dynatrace_iam_group.bu_users : key => {
-      id   = group.id
-      name = group.name
-    }
-  }
+  description = "BU User group IDs"
+  value       = { for k, v in dynatrace_iam_group.bu_users : k => v.id }
 }
 
-output "application_admin_groups" {
-  description = "Map of Application Admin group IDs"
-  value = {
-    for key, group in dynatrace_iam_group.application_admins : key => {
-      id   = group.id
-      name = group.name
-    }
-  }
+output "app_admin_groups" {
+  description = "Application Admin group IDs"
+  value       = { for k, v in dynatrace_iam_group.app_admins : k => v.id }
 }
 
-output "application_user_groups" {
-  description = "Map of Application User group IDs"
-  value = {
-    for key, group in dynatrace_iam_group.application_users : key => {
-      id   = group.id
-      name = group.name
-    }
-  }
+output "app_user_groups" {
+  description = "Application User group IDs"
+  value       = { for k, v in dynatrace_iam_group.app_users : k => v.id }
 }
 
-# ------------------------------------------------------------------------------
-# Boundary Outputs
-# ------------------------------------------------------------------------------
-
-output "bu_boundaries" {
-  description = "Map of BU-level data boundary IDs"
-  value = {
-    for key, boundary in dynatrace_iam_policy_boundary.bu_boundary : key => {
-      id   = boundary.id
-      name = boundary.name
-    }
-  }
-}
-
-output "bu_settings_boundaries" {
-  description = "Map of BU-level settings boundary IDs"
-  value = {
-    for key, boundary in dynatrace_iam_policy_boundary.bu_settings_boundary : key => {
-      id   = boundary.id
-      name = boundary.name
-    }
-  }
-}
-
-output "application_boundaries" {
-  description = "Map of Application-level data boundary IDs"
-  value = {
-    for key, boundary in dynatrace_iam_policy_boundary.application_boundary : key => {
-      id   = boundary.id
-      name = boundary.name
-    }
-  }
-}
-
-output "application_settings_boundaries" {
-  description = "Map of Application-level settings boundary IDs"
-  value = {
-    for key, boundary in dynatrace_iam_policy_boundary.application_settings_boundary : key => {
-      id   = boundary.id
-      name = boundary.name
-    }
-  }
-}
-
-# ------------------------------------------------------------------------------
-# Policy Outputs
-# ------------------------------------------------------------------------------
-
-output "custom_policies" {
-  description = "Map of custom policy IDs"
+output "custom_policy_ids" {
+  description = "Custom and templated policy IDs"
   value = {
     admin_features        = dynatrace_iam_policy.admin_features.id
-    scoped_data_read      = dynatrace_iam_policy.scoped_data_read.id
-    scoped_settings_read  = dynatrace_iam_policy.scoped_settings_read.id
-    scoped_settings_write = dynatrace_iam_policy.scoped_settings_write.id
     slo_manager           = dynatrace_iam_policy.slo_manager.id
+    scoped_data_read      = dynatrace_iam_policy.scoped_data_read.id
+    scoped_settings_write = dynatrace_iam_policy.scoped_settings_write.id
   }
 }
 
-# ------------------------------------------------------------------------------
-# Summary Output
-# ------------------------------------------------------------------------------
-
-output "iam_summary" {
-  description = "Summary of created IAM resources"
+output "boundary_ids" {
+  description = "Boundary IDs"
   value = {
-    business_units     = keys(var.business_units)
-    applications       = keys(var.applications)
-    groups_created     = length(dynatrace_iam_group.bu_admins) + length(dynatrace_iam_group.bu_users) + length(dynatrace_iam_group.application_admins) + length(dynatrace_iam_group.application_users)
-    boundaries_created = length(dynatrace_iam_policy_boundary.bu_boundary) + length(dynatrace_iam_policy_boundary.bu_settings_boundary) + length(dynatrace_iam_policy_boundary.application_boundary) + length(dynatrace_iam_policy_boundary.application_settings_boundary)
+    bu_data      = { for k, v in dynatrace_iam_policy_boundary.bu_data : k => v.id }
+    bu_settings  = { for k, v in dynatrace_iam_policy_boundary.bu_settings : k => v.id }
+    app_data     = { for k, v in dynatrace_iam_policy_boundary.app_data : k => v.id }
+    app_settings = { for k, v in dynatrace_iam_policy_boundary.app_settings : k => v.id }
+  }
+}
+
+output "configuration_summary" {
+  description = "Summary of the IAM configuration"
+  value = {
+    business_units   = keys(var.business_units)
+    applications     = keys(var.applications)
+    stages           = var.stages
+    total_groups     = length(var.business_units) * 2 + length(var.applications) * 2
+    total_boundaries = length(var.business_units) * 2 + length(var.applications) * 2
+    total_bindings   = length(var.business_units) * 2 + length(var.applications) * 2
   }
 }

@@ -1,186 +1,108 @@
 # ============================================================================
-# Policy Bindings - BU-Level Groups
+# BU-Level Bindings
 # ============================================================================
-# Bindings connect groups to policies, optionally with boundaries.
-# These bindings are for BU-level groups (access to all data within a BU).
+# Lesson #21: ONE binding resource per group — multiple resources overwrite.
+# Lesson #19: Default data read policies REQUIRED for Grail bucket access.
+# Lesson #20: Admin Features permissions are tenant-wide (cannot scope).
 #
-# IMPORTANT:
-# - Bindings for the same group are split into separate resources when they
-#   use different boundary types (storage vs settings cannot share a binding).
-# - BU Admins use Standard User + Admin Features (custom), NOT Admin User.
-#   This ensures settings:objects:write is ONLY granted via the bounded
-#   Scoped Settings Write policy.
-#
-# See LESSONS_LEARNED.md #16 for why Admin User is not used.
+# BU Admins: Standard User + Admin Features + data read (bounded) +
+#            settings write (bounded) + system events
+# BU Users:  Standard User + data read (bounded) + system events
 # ============================================================================
 
-# ------------------------------------------------------------------------------
-# BU Admin Bindings — Resource 1: Data + Feature Access
-# Policies without settings boundary: Standard User, Admin Features, data read
-# ------------------------------------------------------------------------------
+resource "dynatrace_iam_policy_bindings_v2" "bu_admins" {
+  for_each    = var.business_units
+  group       = dynatrace_iam_group.bu_admins[each.key].id
+  environment = var.environment_id
 
-resource "dynatrace_iam_policy_bindings_v2" "bu_admins_data" {
-  for_each = var.business_units
+  # --- Feature policies (no boundary — tenant-wide by nature) ---
+  policy { id = data.dynatrace_iam_policy.standard_user.id }
+  policy { id = dynatrace_iam_policy.admin_features.id }
+  policy { id = data.dynatrace_iam_policy.read_system_events.id }
+  policy { id = dynatrace_iam_policy.anomaly_detection_write.id }
+  policy { id = dynatrace_iam_policy.openpipeline_management.id }
 
-  group   = dynatrace_iam_group.bu_admins[each.key].id
-  account = var.account_id
-
-  # Standard User provides: documents, Davis AI, segments, SLO read, automation read, etc.
-  policy {
-    id = data.dynatrace_iam_policy.standard_user.id
-  }
-
-  # Admin Features adds: full automation admin, SLO write, extensions write,
-  # OpenPipeline, App Engine — WITHOUT settings:objects:write
-  policy {
-    id = dynatrace_iam_policy.admin_features.id
-  }
-
-  # Scoped data read using templated policy with BU prefix parameter
-  # lower() ensures bucket names are always lowercase
+  # --- Scoped data read (WHERE-clause defense-in-depth) ---
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
-    parameters = {
-      "security_context_prefix" = lower("${each.key}-")
-    }
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
+    parameters = { "security_context_prefix" = "${lower(each.key)}-" }
   }
 
-  # Entities read with BU boundary
-  policy {
-    id         = data.dynatrace_iam_policy.read_entities.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
-  }
-
-  # Default data read policies with BU boundary — required for bucket-level access.
-  # Scoped Grail Data Read (WHERE clause) alone does NOT grant bucket permissions.
-  # These default policies carry the implicit bucket access grants.
-  # See LESSONS_LEARNED.md #19.
+  # --- Default data read policies (bucket access — Lesson #19) ---
   policy {
     id         = data.dynatrace_iam_policy.read_logs.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_metrics.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_spans.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_events.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_bizevents.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
-  # System events (not scoped by security_context — applies globally)
   policy {
-    id = data.dynatrace_iam_policy.read_system_events.id
+    id         = data.dynatrace_iam_policy.read_entities.id
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-}
 
-# ------------------------------------------------------------------------------
-# BU Admin Bindings — Resource 2: Settings Write (uses settings boundary)
-# Separate resource required because settings:dt.security_context boundaries
-# cannot be mixed with storage:dt.security_context boundaries in one binding.
-# This is the ONLY source of settings:objects:write for BU Admins.
-# ------------------------------------------------------------------------------
-
-resource "dynatrace_iam_policy_bindings_v2" "bu_admins_settings" {
-  for_each = var.business_units
-
-  group   = dynatrace_iam_group.bu_admins[each.key].id
-  account = var.account_id
-
-  # Scoped settings write — bounded to BU entities only
-  # lower() ensures bucket names are always lowercase
+  # --- Scoped settings write (only source of settings:objects:write) ---
   policy {
     id         = dynatrace_iam_policy.scoped_settings_write.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_settings_boundary[each.key].id]
-    parameters = {
-      "security_context_prefix" = lower("${each.key}-")
-    }
+    boundaries = [dynatrace_iam_policy_boundary.bu_settings[each.key].id]
+    parameters = { "security_context_prefix" = "${lower(each.key)}-" }
   }
-
-  depends_on = [dynatrace_iam_policy_bindings_v2.bu_admins_data]
 }
 
-# ------------------------------------------------------------------------------
-# BU User Bindings — Resource 1: Data + Settings Read
-# Read-only access to Grail data within their BU.
-# Standard User already provides: documents, SLO read, automation read,
-# Davis AI, segments. Single resource is sufficient.
-# ------------------------------------------------------------------------------
+resource "dynatrace_iam_policy_bindings_v2" "bu_users" {
+  for_each    = var.business_units
+  group       = dynatrace_iam_group.bu_users[each.key].id
+  environment = var.environment_id
 
-resource "dynatrace_iam_policy_bindings_v2" "bu_users_data" {
-  for_each = var.business_units
+  # --- Feature policies ---
+  policy { id = data.dynatrace_iam_policy.standard_user.id }
+  policy { id = data.dynatrace_iam_policy.read_system_events.id }
+  policy { id = dynatrace_iam_policy.anomaly_detection_write.id }
 
-  group   = dynatrace_iam_group.bu_users[each.key].id
-  account = var.account_id
-
-  # Standard User access for basic environment features
-  policy {
-    id = data.dynatrace_iam_policy.standard_user.id
-  }
-
-  # Scoped data read using templated policy with BU prefix parameter
-  # lower() ensures bucket names are always lowercase
+  # --- Scoped data read (WHERE-clause defense-in-depth) ---
   policy {
     id         = dynatrace_iam_policy.scoped_data_read.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
-    parameters = {
-      "security_context_prefix" = lower("${each.key}-")
-    }
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
+    parameters = { "security_context_prefix" = "${lower(each.key)}-" }
   }
 
-  # Entities read with BU boundary
-  policy {
-    id         = data.dynatrace_iam_policy.read_entities.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
-  }
-
-  # Default data read policies with BU boundary — required for bucket-level access.
-  # See LESSONS_LEARNED.md #19.
+  # --- Default data read policies (bucket access — Lesson #19) ---
   policy {
     id         = data.dynatrace_iam_policy.read_logs.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_metrics.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_spans.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_events.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
   policy {
     id         = data.dynatrace_iam_policy.read_bizevents.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_boundary[each.key].id]
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
-
-  # Scoped settings read — additive over Standard User's global read,
-  # but retained for explicitness
   policy {
-    id         = dynatrace_iam_policy.scoped_settings_read.id
-    boundaries = [dynatrace_iam_policy_boundary.bu_settings_boundary[each.key].id]
-    parameters = {
-      "security_context_prefix" = lower("${each.key}-")
-    }
+    id         = data.dynatrace_iam_policy.read_entities.id
+    boundaries = [dynatrace_iam_policy_boundary.bu_data[each.key].id]
   }
 }
