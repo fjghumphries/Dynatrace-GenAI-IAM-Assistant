@@ -50,16 +50,16 @@ The Terraform variables.tf application map requires unique keys. When two applic
 
 ---
 
-## 1. Security Context is King
+## 1b. Security Context is the Primary Enforcement Field
 
 ### Key Insight
 The `dt.security_context` field is the **primary enforcement mechanism** for IAM in Grail environments. Unlike Management Zones (2nd Gen), which are deprecated for Grail, security context provides hierarchical, scalable access control.
 
 ### Best Practice
-- Use a consistent, hierarchical format: `BU-STAGE-APPLICATION-COMPONENT`
+- Use a consistent, hierarchical format: `bu-stage-application-component` (all lowercase)
 - Use `startsWith()` operator for hierarchical scoping
-- Ensure security_context is **always populated** via OpenPipeline enrichment
-- Never rely solely on segments for security - they provide filtering, not enforcement
+- Ensure security_context is **always populated** at ingest time — set it directly via `oneagentctl`
+- Never rely solely on segments for security — they provide filtering, not enforcement
 
 ### Gotcha
 Security context must exist at ingest time. Data without security_context cannot be properly scoped retroactively.
@@ -436,44 +436,6 @@ Admin User default policy is intentionally NOT used — see Lesson #16.
 
 ---
 
-## 14. Project Restructure: iam/ → sample-outputs/ + outputs/
-
-### Change
-Restructured the project from a single `iam/` directory to a generator workflow:
-- `iam/` → `sample-outputs/` — the existing Terraform config is now a reference sample
-- `outputs/` — new target directory for Copilot-generated configurations
-- `.github/copilot-instructions.md` — updated to teach Copilot the new generation workflow
-- `instructions.md` — added clear `CUSTOMER INPUT START/END` markers so users know exactly where to edit
-- `README.md` (root) — created with generation instructions, suggested prompts, and Terraform usage guide
-
-### Why
-- The original structure assumed a single static Terraform config. The new structure supports a repeatable generation workflow: edit input → ask Copilot → get Terraform output.
-- Keeping the sample separate ensures it's never accidentally overwritten during a new generation.
-- Clear input markers in `instructions.md` reduce user confusion about where to provide their environment details.
-
----
-
-## 15. Terminology Rename: Landscape → Application
-
-### Change
-Renamed "landscape" to "application" across all project files — documentation, Terraform variables, resource names, comments, and file names (`bindings_landscape_bindings.tf` → `bindings_application_bindings.tf`).
-
-### Why
-- "Landscape" was customer-specific terminology from the original engagement. "Application" is a more universally understood term that maps directly to what most Dynatrace users call their monitored workloads.
-- Using "application" makes the project more accessible to new users without requiring them to learn domain-specific vocabulary.
-
-### What Changed
-- All `.md`, `.txt`, `.tf`, `.tfvars`, `.example` files updated
-- Terraform variable `landscapes` → `applications`, resource names `landscape_*` → `application_*`
-- File rename: `bindings_landscape_bindings.tf` → `bindings_application_bindings.tf`
-- The `sample-outputs/` directory reflects the new naming as a reference
-
-### Impact
-- Existing Terraform state from the old `iam/` directory (which used `landscape` naming) is not affected — it lives in `sample-outputs/` as a reference only.
-- New generations via `outputs/` will use `application` naming throughout.
-
----
-
 ## 16. Admin User Default Policy Grants Unconditional Settings Write — Boundaries Cannot Scope It
 
 ### Finding
@@ -490,13 +452,6 @@ To properly scope settings write for BU Admins:
 2. **Create a custom `Admin Features (No Settings Write)` policy** that cherry-picks the specific feature-level permissions needed (automation admin, SLO write, extensions management, OpenPipeline, App Engine)
 3. **Keep** only `Scoped Settings Write` (with boundary) for settings write access
 4. This ensures `settings:objects:write` is only granted through the bounded policy
-
-### Resolution
-This has been fixed in the sample configuration:
-- Created `Admin Features (No Settings Write)` custom policy in `policies_custom_policies.tf`
-- BU Admin bindings now use `Standard User` + `Admin Features` instead of `Admin User`
-- The `Admin User` data source has been removed from `policies_default_policies.tf`
-- Settings write for BU Admins now comes exclusively from the bounded `Scoped Settings Write` policy
 
 ### Key Takeaway
 Never bind a default policy that contains `settings:objects:write` without a boundary if you intend to scope settings access. Default policies are convenient but opaque — always audit what permissions they contain before using them in a scoped IAM model.
@@ -563,13 +518,6 @@ resource "dynatrace_iam_policy_bindings_v2" "bu_admins" {
 
 Different `policy` blocks within the same resource **can** have different boundary types (storage vs settings). The limitation is one binding **resource** per group, not one boundary type per resource.
 
-### Resolution
-- Merged `bu_admins_data` + `bu_admins_settings` into single `bu_admins` resource
-- Merged `bu_users_data` into single `bu_users` resource  
-- Merged `application_admins_data` + `application_admins_settings` into single `application_admins` resource
-- Merged `application_users_data` into single `application_users` resource
-- Updated binding count from 12 to 8 resources (one per group)
-
 ### Key Takeaway
 **One `dynatrace_iam_policy_bindings_v2` resource per group.** Never split a group's bindings across multiple resources — they will overwrite each other. All policies, regardless of boundary type, must be declared in a single binding resource for each group.
 
@@ -598,20 +546,6 @@ Body: {"name": "test", "statementQuery": "ALLOW hub:catalog-items:install;"}
 
 If the permission is invalid, the API returns an error with details about the unrecognized identifier.
 
-### Sprint Environment Endpoints
-For sprint/hardening environments, use these endpoints:
-- **SSO Token URL**: `https://sso-sprint.dynatracelabs.com/sso/oauth2/token`
-- **IAM API Base**: `https://api-hardening.internal.dynatracelabs.com`
-
-The Terraform provider source code (`dynatrace/rest/credentials.go`) uses these constants:
-```go
-SprintIAMEndpointURL = "https://api-hardening.internal.dynatracelabs.com"
-SprintTokenURL       = "https://sso-sprint.dynatracelabs.com/sso/oauth2/token"
-```
-
-### Impact on This Configuration
-The `Admin Features (No Settings Write)` custom policy originally included `hub:catalog-items:install` and `activegate:activegates:read/write`. These were removed because they are not valid IAM permission identifiers. The policy now only includes: automation (workflows, calendars, rules), SLO management, extensions management, OpenPipeline configuration, and App Engine management.
-
 ### Key Takeaway
 Always validate permission identifiers against the IAM API before adding them to policies. The existence of a feature in the Dynatrace UI does not guarantee a corresponding IAM permission identifier exists. Use the validation endpoint to test before committing to Terraform.
 
@@ -622,8 +556,10 @@ Always validate permission identifiers against the IAM API before adding them to
 ### Finding
 Grail bucket names must be lowercase. Since `dt.security_context` maps to bucket names, all security context values used in IAM boundaries and binding parameters must also be lowercase. Primary_tags keys, host_group values, variable keys, and stage names should all be lowercase for consistency.
 
-### Solution
-All variable keys and values are defined in lowercase directly:
+### Key Takeaway
+Always define BU names, application names, and stage identifiers in lowercase. Grail bucket names are case-sensitive and must be lowercase — a security context value like `BU1-prod-petclinic01` will create a different bucket than `bu1-prod-petclinic01`, and IAM boundaries referencing `bu1-` will not match uppercase values. The `lower()` function is applied in Terraform boundaries and binding parameters as an extra safeguard, but the source values in `variables.tf` should already be lowercase.
+
+---
 
 ## 19. Scoped Grail Data Read (WHERE Clause) Does NOT Grant Bucket Permissions — Default Read Policies Required
 
@@ -644,16 +580,6 @@ Bind **both**:
 - The **Scoped Grail Data Read** templated policy (optional, for defense-in-depth) — adds explicit WHERE-clause-level filtering
 
 Since IAM is additive, having both is safe — the effective access is the union, but since both scope to the same prefix, the result is equivalent.
-
-### Fix Applied
-Added the following default policies with boundaries to **all** binding resources (BU Admins, BU Users, Application Admins, Application Users):
-- `Read Logs` — with BU or application data boundary
-- `Read Metrics` — with BU or application data boundary
-- `Read Spans` — with BU or application data boundary
-- `Read Events` — with BU or application data boundary
-- `Read BizEvents` — with BU or application data boundary
-
-The `Read Entities` policy was already bound with boundaries (it worked because entity access has different bucket mechanics). `Read System Events` remains unbounded (it's not scoped by security_context).
 
 ### Key Takeaway
 **Custom policies with WHERE conditions provide record-level filtering but do NOT grant bucket access.** You must also bind the corresponding Dynatrace default data read policies (with boundaries for scoping) to grant the bucket-level permission. Always test with a real user after applying Terraform changes — `terraform apply` success does not mean effective permissions are correct.
@@ -740,11 +666,11 @@ When a specific settings feature needs to be accessible to all users (not just A
 ### Finding
 The old `openpipeline:configurations:read, openpipeline:configurations:write` permissions belong to the legacy OpenPipeline IAM API. OpenPipeline configuration is now managed via Settings 2.0 under the `builtin:openpipeline.*` schema namespace. Using the old permissions is incorrect for environments on the new Settings pipeline.
 
-### Design Decision
-- **Removed** from Admin Features: `ALLOW openpipeline:configurations:read, openpipeline:configurations:write;`
-- **Added** new "OpenPipeline Management" custom policy using `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"` for each signal type
-- **Intentionally excluded**: `.routing` and `.pipeline-groups` schemas — these are structural/architectural decisions reserved for central platform admins
-- **Only BU Admins** receive this policy — application admins do not need OpenPipeline management
+### Correct Approach
+- Do **not** use `openpipeline:configurations:read/write` — these belong to the legacy IAM API
+- Use `settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.<signal>.pipelines"` for each signal type
+- **Intentionally exclude** `.routing` and `.pipeline-groups` schemas — reserve these for central platform admins
+- Assign this policy to **BU Admins only** — application admins do not need OpenPipeline management
 
 ### Schema Structure Per Signal
 Each signal (logs, metrics, spans, events, bizevents, etc.) has 5 subschemas:
