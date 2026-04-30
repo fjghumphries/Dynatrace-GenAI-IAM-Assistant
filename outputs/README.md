@@ -1,6 +1,6 @@
 # Dynatrace IAM Configuration — Grail 3rd Gen
 
-Generated: 2026-03-13
+Generated: 2026-04-30
 
 ## Overview
 
@@ -8,8 +8,8 @@ This Terraform configuration manages IAM for a Dynatrace Grail (3rd Gen) environ
 
 | Dimension | Value |
 |---|---|
-| Business Units | bu-platform, bu-payments |
-| Applications | app-alpha (bu-platform), app-beta (bu-payments) |
+| Business Units | bu1, bu2, bu3 |
+| Applications | petclinic01 (bu1), petclinic02 (bu2), petclinic03 (bu3) |
 | Stages | prod, dev |
 | Security context format | `bu-stage-application-component` (lowercase) |
 

@@ -1,0 +1,135 @@
+================================================================================
+DYNATRACE IAM BINDINGS REFERENCE
+================================================================================
+Generated: 2026-04-30
+Configuration: 3 BUs, 3 Applications, 2 Stages
+
+================================================================================
+BINDING ARCHITECTURE
+================================================================================
+
+  Key Design Principles:
+  1. ONE binding resource per group (gotcha #21)
+  2. Storage and settings boundaries CAN coexist in the same resource
+  3. BU Admins use Standard User + Admin Features, NOT Admin User
+  4. Default data read policies REQUIRED for bucket access (gotcha #19)
+  5. All bindings are environment-level
+
+================================================================================
+  BU ADMIN BINDINGS (2 resources, 13 policy blocks each)
+================================================================================
+
+  bu_admins["bu1"]
+  ---------------------------------------------------------------------------
+  Group: bu1-Admins
+  Environment: var.environment_id
+
+  Policy                    | Boundary              | Parameters
+  --------------------------+-----------------------+---------------------------
+  Standard User             | (none)                | -
+  Admin Features            | (none)                | -
+  Read System Events        | (none)                | -
+  Anomaly Detection Write   | (none)                | -
+  OpenPipeline Management   | (none)                | -
+  Scoped Grail Data Read    | bu_data["bu1"]        | prefix = "bu1-"
+  Read Logs                 | bu_data["bu1"]        | -
+  Read Metrics              | bu_data["bu1"]        | -
+  Read Spans                | bu_data["bu1"]        | -
+  Read Events               | bu_data["bu1"]        | -
+  Read BizEvents            | bu_data["bu1"]        | -
+  Read Entities             | bu_data["bu1"]        | -
+  Scoped Settings Write     | bu_settings["bu1"]    | prefix = "bu1-"
+
+  bu_admins["bu2"] — same structure with bu2 boundaries
+  bu_admins["bu3"] — same structure with bu3 boundaries
+
+================================================================================
+BU USER BINDINGS (2 resources, 10 policy blocks each)
+================================================================================
+
+  bu_users["bu1"]
+  ---------------------------------------------------------------------------
+  Group: bu1-Users
+  Environment: var.environment_id
+
+  Policy                    | Boundary              | Parameters
+  --------------------------+-----------------------+---------------------------
+  Standard User             | (none)                | -
+  Read System Events        | (none)                | -
+  Anomaly Detection Write   | (none)                | -
+  Scoped Grail Data Read    | bu_data["bu1"]        | prefix = "bu1-"
+  Read Logs                 | bu_data["bu1"]        | -
+  Read Metrics              | bu_data["bu1"]        | -
+  Read Spans                | bu_data["bu1"]        | -
+  Read Events               | bu_data["bu1"]        | -
+  Read BizEvents            | bu_data["bu1"]        | -
+  Read Entities             | bu_data["bu1"]        | -
+
+  bu_users["bu2"] — same structure with bu2 boundaries
+  bu_users["bu3"] — same structure with bu3 boundaries
+
+================================================================================
+APPLICATION ADMIN BINDINGS (2 resources, 11 policy blocks each)
+================================================================================
+
+  app_admins["petclinic01"]
+  ---------------------------------------------------------------------------
+  Group: petclinic01-Admins
+  Environment: var.environment_id
+
+  Policy                    | Boundary                       | Parameters
+  --------------------------+--------------------------------+----------------------
+  Standard User             | (none)                         | -
+  SLO Manager               | (none)                         | -
+  Read System Events        | (none)                         | -
+  Anomaly Detection Write   | (none)                         | -
+  Read Logs                 | app_data["petclinic01"]        | -
+  Read Metrics              | app_data["petclinic01"]        | -
+  Read Spans                | app_data["petclinic01"]        | -
+  Read Events               | app_data["petclinic01"]        | -
+  Read BizEvents            | app_data["petclinic01"]        | -
+  Read Entities             | app_data["petclinic01"]        | -
+  Scoped Settings Write     | app_settings["petclinic01"]    | prefix = "bu1-"
+
+  NOTE: Scoped Settings Write uses BU prefix in WHERE clause; the
+  app_settings boundary narrows effective scope to this app only.
+
+  app_admins["petclinic02"] — same structure with petclinic02/bu2 boundaries
+  app_admins["petclinic03"] — same structure with petclinic03/bu3 boundaries
+
+================================================================================
+APPLICATION USER BINDINGS (2 resources, 9 policy blocks each)
+================================================================================
+
+  app_users["petclinic01"]
+  ---------------------------------------------------------------------------
+  Group: petclinic01-Users
+  Environment: var.environment_id
+
+  Policy                    | Boundary                       | Parameters
+  --------------------------+--------------------------------+----------------------
+  Standard User             | (none)                         | -
+  Read System Events        | (none)                         | -
+  Anomaly Detection Write   | (none)                         | -
+  Read Logs                 | app_data["petclinic01"]        | -
+  Read Metrics              | app_data["petclinic01"]        | -
+  Read Spans                | app_data["petclinic01"]        | -
+  Read Events               | app_data["petclinic01"]        | -
+  Read BizEvents            | app_data["petclinic01"]        | -
+  Read Entities             | app_data["petclinic01"]        | -
+
+  app_users["petclinic02"] — same structure with petclinic02 boundaries
+  app_users["petclinic03"] — same structure with petclinic03 boundaries
+
+================================================================================
+TOTALS
+================================================================================
+  BU Admin binding resources:          3  (13 policy blocks each)
+  BU User binding resources:           3  (10 policy blocks each)
+  Application Admin binding resources: 3  (11 policy blocks each)
+  Application User binding resources:  3  ( 9 policy blocks each)
+  ---
+  Total binding resources:             12
+  Total policy blocks:                129
+
+  At scale (10 BUs, 2000 apps): 4020 binding resources

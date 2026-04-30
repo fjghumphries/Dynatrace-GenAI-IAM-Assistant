@@ -24,15 +24,20 @@ variable "business_units" {
     applications = list(string)
   }))
   default = {
-    "bu-platform" = {
-      name         = "bu-platform"
-      description  = "Platform Engineering"
-      applications = ["app-alpha"]
+    "bu1" = {
+      name         = "bu1"
+      description  = "Business Unit 1"
+      applications = ["petclinic01"]
     }
-    "bu-payments" = {
-      name         = "bu-payments"
-      description  = "Payments"
-      applications = ["app-beta"]
+    "bu2" = {
+      name         = "bu2"
+      description  = "Business Unit 2"
+      applications = ["petclinic02"]
+    }
+    "bu3" = {
+      name         = "bu3"
+      description  = "Business Unit 3 for Testing"
+      applications = ["petclinic03"]
     }
   }
 }
@@ -46,16 +51,22 @@ variable "applications" {
     stages      = list(string)
   }))
   default = {
-    "app-alpha" = {
-      name        = "app-alpha"
-      description = "App Alpha - belongs to bu-platform"
-      bu          = "bu-platform"
+    "petclinic01" = {
+      name        = "petclinic01"
+      description = "petclinic01 - belongs to bu1"
+      bu          = "bu1"
       stages      = ["prod", "dev"]
     }
-    "app-beta" = {
-      name        = "app-beta"
-      description = "App Beta - belongs to bu-payments"
-      bu          = "bu-payments"
+    "petclinic02" = {
+      name        = "petclinic02"
+      description = "petclinic02 - belongs to bu2"
+      bu          = "bu2"
+      stages      = ["prod", "dev"]
+    }
+    "petclinic03" = {
+      name        = "petclinic03"
+      description = "petclinic03 - belongs to bu3"
+      bu          = "bu3"
       stages      = ["prod", "dev"]
     }
   }

@@ -1,8 +1,8 @@
 ================================================================================
 DYNATRACE IAM GROUPS REFERENCE
 ================================================================================
-Generated: 2026-03-13
-Configuration: 2 BUs, 2 Applications, 2 Stages
+Generated: 2026-04-30
+Configuration: 3 BUs, 3 Applications, 2 Stages
 
 ================================================================================
 GROUP HIERARCHY
@@ -33,81 +33,101 @@ GROUP HIERARCHY
 BU-LEVEL GROUPS (4)
 ================================================================================
 
-  bu-platform-Admins
+  bu1-Admins
   ---------------------------------------------------------------------------
-  Scope: All data within bu-platform (all applications, all stages)
+  Scope: All data within bu1 (all applications, all stages)
   Policies:
     ✓ Standard User (no boundary)
     ✓ Admin Features (no boundary — tenant-wide features)
     ✓ Read System Events (no boundary)
     ✓ Anomaly Detection Write (no boundary — schemaGroup-scoped)
     ✓ OpenPipeline Management (no boundary — schemaId-scoped to *.pipelines only)
-    ✓ Scoped Grail Data Read (Boundary: bu_data["bu-platform"])
-    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: bu_data["bu-platform"])
-    ✓ Scoped Settings Write (Boundary: bu_settings["bu-platform"])
+    ✓ Scoped Grail Data Read (Boundary: bu_data["bu1"])
+    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: bu_data["bu1"])
+    ✓ Scoped Settings Write (Boundary: bu_settings["bu1"])
 
-  bu-platform-Users
+  bu1-Users
   ---------------------------------------------------------------------------
-  Scope: Read-only access to all data within bu-platform
+  Scope: Read-only access to all data within bu1
   Policies:
     ✓ Standard User (no boundary)
     ✓ Read System Events (no boundary)
     ✓ Anomaly Detection Write (no boundary — schemaGroup-scoped)
-    ✓ Scoped Grail Data Read (Boundary: bu_data["bu-platform"])
-    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: bu_data["bu-platform"])
+    ✓ Scoped Grail Data Read (Boundary: bu_data["bu1"])
+    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: bu_data["bu1"])
 
-  bu-payments-Admins
+  bu2-Admins
   ---------------------------------------------------------------------------
-  Scope: All data within bu-payments (all applications, all stages)
-  Policies: (same structure as bu-platform-Admins with bu-payments boundaries)
+  Scope: All data within bu2 (all applications, all stages)
+  Policies: (same structure as bu1-Admins with bu2 boundaries)
 
-  bu-payments-Users
+  bu2-Users
   ---------------------------------------------------------------------------
-  Scope: Read-only access to all data within bu-payments
-  Policies: (same structure as bu-platform-Users with bu-payments boundaries)
+  Scope: Read-only access to all data within bu2
+  Policies: (same structure as bu1-Users with bu2 boundaries)
+
+  bu3-Admins
+  ---------------------------------------------------------------------------
+  Scope: All data within bu3 (all applications, all stages)
+  Policies: (same structure as bu1-Admins with bu3 boundaries)
+
+  bu3-Users
+  ---------------------------------------------------------------------------
+  Scope: Read-only access to all data within bu3
+  Policies: (same structure as bu1-Users with bu3 boundaries)
 
 ================================================================================
 APPLICATION-LEVEL GROUPS (4)
 ================================================================================
 
-  app-alpha-Admins
+  petclinic01-Admins
   ---------------------------------------------------------------------------
-  Scope: app-alpha data + settings (prod + dev stages in bu-platform)
+  Scope: petclinic01 data + settings (prod + dev stages in bu1)
   Policies:
     ✓ Standard User (no boundary)
     ✓ SLO Manager (no boundary — tenant-wide)
     ✓ Read System Events (no boundary)
     ✓ Anomaly Detection Write (no boundary — schemaGroup-scoped)
-    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: app_data["app-alpha"])
-    ✓ Scoped Settings Write (Boundary: app_settings["app-alpha"])
+    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: app_data["petclinic01"])
+    ✓ Scoped Settings Write (Boundary: app_settings["petclinic01"])
 
-  app-alpha-Users
+  petclinic01-Users
   ---------------------------------------------------------------------------
-  Scope: Read-only access to app-alpha data (prod + dev stages)
+  Scope: Read-only access to petclinic01 data (prod + dev stages)
   Policies:
     ✓ Standard User (no boundary)
     ✓ Read System Events (no boundary)
     ✓ Anomaly Detection Write (no boundary — schemaGroup-scoped)
-    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: app_data["app-alpha"])
+    ✓ Read Logs, Metrics, Spans, Events, BizEvents, Entities (Boundary: app_data["petclinic01"])
 
-  app-beta-Admins
+  petclinic02-Admins
   ---------------------------------------------------------------------------
-  Scope: app-beta data + settings (prod + dev stages in bu-payments)
-  Policies: (same structure as app-alpha-Admins with app-beta boundaries)
+  Scope: petclinic02 data + settings (prod + dev stages in bu2)
+  Policies: (same structure as petclinic01-Admins with petclinic02 boundaries)
 
-  app-beta-Users
+  petclinic02-Users
   ---------------------------------------------------------------------------
-  Scope: Read-only access to app-beta data (prod + dev stages)
-  Policies: (same structure as app-alpha-Users with app-beta boundaries)
+  Scope: Read-only access to petclinic02 data (prod + dev stages)
+  Policies: (same structure as petclinic01-Users with petclinic02 boundaries)
+
+  petclinic03-Admins
+  ---------------------------------------------------------------------------
+  Scope: petclinic03 data + settings (prod + dev stages in bu3)
+  Policies: (same structure as petclinic01-Admins with petclinic03 boundaries)
+
+  petclinic03-Users
+  ---------------------------------------------------------------------------
+  Scope: Read-only access to petclinic03 data (prod + dev stages)
+  Policies: (same structure as petclinic01-Users with petclinic03 boundaries)
 
 ================================================================================
 TOTALS
 ================================================================================
-  BU Admin groups:          2
-  BU User groups:           2
-  Application Admin groups: 2
-  Application User groups:  2
+  BU Admin groups:          3
+  BU User groups:           3
+  Application Admin groups: 3
+  Application User groups:  3
   ---
-  Total groups:             8
+  Total groups:             12
 
   At scale (10 BUs, 2000 apps): 20 BU + 4000 App = 4020 groups

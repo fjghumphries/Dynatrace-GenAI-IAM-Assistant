@@ -1,261 +1,189 @@
-# Dynatrace IAM Generator
+# Dynatrace GenAI IAM Assistant
 
 > [!WARNING]
-> **This project is experimental.** Generated Terraform configurations are a starting point, not a production-ready solution. Real-world deployments require manual review, iterative adjustments, and thorough testing before applying to a live Dynatrace account. Always validate with `terraform plan` and verify effective permissions in a non-production environment first.
+> **Experimental.** Generated Terraform is a starting point, not production-ready output. Always run `terraform plan` and verify effective permissions in a non-production tenant before applying.
 
-> [!IMPORTANT]
-> **LLM Model Matters.** This project was developed and tested with **Claude Sonnet 4.6** via GitHub Copilot. The quality of generated IAM configurations depends on the model — different models may misunderstand IAM scoping rules, generate invalid permission identifiers, or fail to follow the design constraints in `instructions.md`. If you switch models, verify outputs carefully.
+Generate Terraform-managed IAM configurations for Dynatrace Grail (3rd Gen) using any AI coding agent (GitHub Copilot, Claude Code, Cursor, OpenCode, Gemini CLI, …). Knowledge is packaged as portable [Agent Skills](https://agentskills.io/) under [`skills/`](skills/), so the same workflow runs across editors.
 
-Generate Terraform-managed IAM configurations for Dynatrace Grail (3rd Gen) environments using GitHub Copilot.
-
-You fill in your Business Units, applications, and stages in [`instructions.md`](instructions.md) — GitHub Copilot reads the spec and generates a complete, ready-to-apply Terraform configuration.
+You fill in your Business Units, applications, and stages in [`inputs.yaml`](inputs.yaml) — the agent loads the relevant skills and writes a complete Terraform configuration into [`outputs/`](outputs/).
 
 ---
 
-## Getting Started
+## Why skills (not a single instructions file)?
+
+Knowledge is split into focused [Agent Skills](https://agentskills.io/) so agents only load what they need. Each skill carries its own gotchas under `references/`.
+
+| Skill | Loaded when |
+|---|---|
+| [`dt-iam-generator`](skills/dt-iam-generator/SKILL.md) | Generating or regenerating the Terraform output |
+| [`dt-iam-policy-authoring`](skills/dt-iam-policy-authoring/SKILL.md) | Writing or reviewing a `dynatrace_iam_policy` |
+| [`dt-iam-bindings`](skills/dt-iam-bindings/SKILL.md) | Editing groups, boundaries, or bindings |
+| [`dt-iam-validation`](skills/dt-iam-validation/SKILL.md) | Planning, applying, or troubleshooting |
+| [`dt-for-ai`](skills/dt-for-ai/SKILL.md) | DQL, observability, dashboards, notebooks (bridges to the official [Dynatrace for AI](https://github.com/Dynatrace/dynatrace-for-ai) skills) |
+
+GitHub Copilot picks them up via [`.github/copilot-instructions.md`](.github/copilot-instructions.md). Other agents read [`AGENTS.md`](AGENTS.md). Both are short routing files — the substance lives in `skills/`.
+
+There is **no** top-level `instructions.md` or `LESSONS_LEARNED.md`. The customer input is `inputs.yaml`. Knowledge and gotchas live inside each skill's `references/` folder.
+
+---
+
+## Getting started
 
 ### Prerequisites
 
-- [Visual Studio Code](https://code.visualstudio.com/) with the [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) and [GitHub Copilot Chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat) extensions installed
+- An AI coding agent (e.g. VS Code + [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) + [Copilot Chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat))
 - A Dynatrace Grail (3rd Gen) account
 - [Terraform](https://developer.hashicorp.com/terraform/install) v1.0+
 
-### Setup
+### Install the bridged Dynatrace for AI skills (optional, recommended)
 
-1. **Open the repository** in VS Code:
-   ```bash
-   code "/path/to/GenAI IAM Generation"
-   ```
+```bash
+# Skills package — works with Claude Code, Cursor, Cline, GitHub Copilot, OpenCode, …
+npx skills add dynatrace/dynatrace-for-ai
+```
 
-2. **Select Claude Sonnet 4.6** in Copilot Chat — click the model selector and choose `Claude Sonnet 4.6`.
+This adds DQL, observability, dashboard, and notebook skills used by the `dt-for-ai` bridge skill.
 
-3. **Copilot reads its instructions automatically** — [`.github/copilot-instructions.md`](.github/copilot-instructions.md) is loaded on every interaction. It contains critical IAM gotchas, generation rules, and documentation update requirements. You do not need to paste it manually.
-
-4. **Read before generating:**
-   - [`instructions.md`](instructions.md) — IAM specification with a clearly marked **Customer Input** section
-   - [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) — Accumulated gotchas and design decisions (23 entries as of March 2026)
-   - [`sample-outputs/`](sample-outputs/) — Complete working reference (3 BUs × 3 applications × 2 stages)
-
----
-
-## Project Structure
+### Repository layout
 
 ```
 .
-├── instructions.md                  # IAM specification — edit the Customer Input section
-├── LESSONS_LEARNED.md               # Design decisions, gotchas, Dynatrace IAM findings
-├── README.md                        # This file
+├── README.md, AGENTS.md, inputs.yaml, .gitignore
+│
 ├── .github/
-│   └── copilot-instructions.md      # Rules Copilot follows during every generation
+│   ├── copilot-instructions.md          # GitHub Copilot routing
+│   └── prompts/                         # Reusable VS Code slash commands
 │
-├── sample-outputs/                  # Complete reference example
-│   ├── *.tf                         # Terraform configuration files
-│   ├── docs/                        # Human-readable IAM documentation
-│   └── README.md                    # Architecture overview for the sample config
+├── skills/                              # Agent Skills (portable knowledge)
+│   ├── dt-iam-generator/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       ├── group-model.md
+│   │       ├── security-context-enrichment.md
+│   │       └── gotchas.md
+│   ├── dt-iam-policy-authoring/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       ├── permissions-cheatsheet.md
+│   │       └── gotchas.md
+│   ├── dt-iam-bindings/
+│   │   ├── SKILL.md
+│   │   └── references/gotchas.md
+│   ├── dt-iam-validation/
+│   │   ├── SKILL.md
+│   │   └── references/gotchas.md
+│   └── dt-for-ai/SKILL.md
 │
-└── outputs/                         # ← YOUR generated Terraform files go here
-    ├── *.tf
-    ├── docs/
-    └── README.md
+├── sample-outputs/                      # Reference: 2 BUs × 2 apps × 2 stages
+└── outputs/                             # ← generated Terraform goes here
 ```
 
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| [`instructions.md`](instructions.md) | IAM specification file. Contains the group model, policy design rules, security context strategy, and a **Customer Input** section where you define your BUs, applications, and stages. |
-| [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | Living knowledge base of Dynatrace IAM gotchas, design decisions, and findings. Explains *why* the configuration is structured as it is. Read this before making manual changes. |
-| [`sample-outputs/`](sample-outputs/) | A complete, working Terraform configuration for 3 BUs × 3 applications × 2 stages. Use as a reference for expected structure and patterns. |
-| [`outputs/`](outputs/) | Where Copilot writes your generated Terraform files. Mirrors the structure of `sample-outputs/`. |
-
-### The `docs/` Folder
-
-Every configuration (sample and generated) includes a `docs/` subfolder with three human-readable reference files:
-
-| File | Contents |
-|------|----------|
-| `docs/policies.txt` | All IAM policies (default, templated, custom) with descriptions and permissions. |
-| `docs/groups.txt` | Group hierarchy, capabilities, and policy assignments at a glance. |
-| `docs/bindings.txt` | Mapping of policies to groups, with boundaries and parameters. |
-
-These are **not consumed by Terraform** — they exist for review and sharing without reading HCL. Copilot keeps them in sync with the `.tf` files automatically.
-
 ---
 
-## IAM Model Overview
+## How to use
 
-The generated configuration implements a two-level, two-role group model:
+The whole workflow is driven by **slash-command wizards** in your AI chat (Copilot Chat, Claude Code, etc.). Type `/` to see them.
 
-| Level | Groups | Scope |
-|-------|--------|-------|
-| **BU** | `{BU}-Admins`, `{BU}-Users` | All applications and stages within the BU |
-| **Application** | `{App}-Admins`, `{App}-Users` | One application, all its stages |
+| Wizard | Use it to |
+|---|---|
+| `/init-inputs` | Populate `inputs.yaml` from scratch — interactive interview |
+| `/generate-iam` | Produce all Terraform under `outputs/` from the current `inputs.yaml` |
+| `/update-iam` | Re-generate after editing `inputs.yaml` directly |
+| `/add-bu` | Add a new Business Unit (and its apps) in one shot |
+| `/add-app` | Add a new application to an existing BU |
+| `/validate-iam` | Pre-apply sanity checks |
+| `/apply-iam` | Guided OAuth client setup → env vars → init/plan/apply → verification |
 
-| Role | Data Access | Settings | SLO Write | OpenPipeline | Anomaly Detectors |
-|------|-------------|----------|-----------|--------------|-------------------|
-| BU Admins | Scoped to BU | Write (scoped) | Yes | Pipeline write (no routing/groups) | Yes |
-| BU Users | Scoped to BU | Read only | No | Read only | Yes |
-| App Admins | Scoped to app | Write (scoped) | Yes | Read only | Yes |
-| App Users | Scoped to app | Read only | No | Read only | Yes |
+### Manual flow (no wizards)
 
-**Security context format:** `bu-stage-application-component` (lowercase, e.g. `bu1-prod-petclinic01-api`)
-
-**Access is enforced via `dt.security_context`** — the primary IAM enforcement field in Grail. Primary tags (`primary_tags.application`, `primary_tags.bu`, `primary_tags.stage`) are used for filtering and DQL but cannot be used directly in IAM policy conditions.
-
-### Critical Design Rules (summary — read `LESSONS_LEARNED.md` for full details)
-
-| Rule | Reason |
-|------|--------|
-| Admin User default policy is **never used** | Grants unconditional `settings:objects:write` which cannot be scoped by boundaries |
-| One `dynatrace_iam_policy_bindings_v2` resource per group | Multiple resources targeting the same group overwrite each other |
-| Default data read policies required alongside custom WHERE-clause policies | Custom policies filter records but don't grant bucket access |
-| Feature permissions (`automation:*`, `slo:*`, `app-engine:*`, etc.) are tenant-wide | Boundaries have no effect on these namespaces |
-| OpenPipeline managed via `settings:schemaId = "builtin:openpipeline.*.pipelines"` | The old `openpipeline:configurations:*` API is deprecated; `.routing` and `.pipeline-groups` write never granted |
-
----
-
-## How to Generate
-
-### Step 1 — Edit `instructions.md`
-
-Open [`instructions.md`](instructions.md) and edit **Section 1 — Customer Configuration**. Update the YAML blocks with your actual values:
+### 1. Edit `inputs.yaml`
 
 ```yaml
 business_units:
-  finance:
-    applications: [sap01, sap02]
-  retail:
-    applications: [ecommerce01, pos01]
+  bu-platform:
+    description: "Platform Engineering"
+    applications: [app-alpha]
+  bu-payments:
+    description: "Payments"
+    applications: [app-beta]
 
-stages: [prod, staging, dev]
+stages: [prod, dev]
 ```
 
-> Each application belongs to exactly one BU. Application and BU names must be lowercase. If two BUs share an app name, use a unique identifier (e.g. `finance-sap` and `retail-sap`).
+All names lowercase. Each application maps to exactly one BU.
 
-### Step 2 — Ask Copilot to Generate
+### 2. Ask your agent to generate
 
-Open Copilot Chat and use one of:
+In your AI agent:
 
-**Basic generation:**
 ```
-Generate the Terraform IAM configuration from instructions.md
-```
-
-**Full generation with explanation:**
-```
-Read instructions.md, extract the customer input, and generate the complete
-Terraform IAM configuration into outputs/. Include all .tf files, docs, and README.
+Generate the Terraform IAM configuration from inputs.yaml into outputs/.
 ```
 
-**After updating input:**
-```
-I've updated the customer input in instructions.md. Regenerate the Terraform
-configuration in outputs/ to match.
-```
+Or use a slash command (Copilot Chat, after copying prompts):
 
-**Add a new BU:**
 ```
-Add a new BU called LOGISTICS with applications WAREHOUSE01 and FLEET01.
-Update all Terraform files and docs in outputs/.
+/generate-iam
 ```
 
-### Step 3 — Review the Output
+The agent loads `dt-iam-generator`, parses `inputs.yaml`, mirrors the structure of `sample-outputs/`, and writes complete `.tf` files plus `docs/*.txt` and `README.md` into `outputs/`.
 
-Copilot generates these files in `outputs/`:
-
-| File | Purpose |
-|------|---------|
-| `variables.tf` | BU, application, and stage definitions |
-| `boundaries_main.tf` | Policy boundary resources |
-| `policies_default_policies.tf` | References to Dynatrace default policies |
-| `policies_templated_policies.tf` | Parameterised custom policies |
-| `policies_custom_policies.tf` | Fully custom policies |
-| `groups_main.tf` | Group definitions |
-| `bindings_bu_bindings.tf` | BU-level policy bindings |
-| `bindings_application_bindings.tf` | Application-level policy bindings |
-| `docs/policies.txt` | Human-readable policy reference |
-| `docs/groups.txt` | Human-readable group reference |
-| `docs/bindings.txt` | Human-readable bindings reference |
-| `README.md` | Architecture overview for the generated config |
-
----
-
-## How to Apply with Terraform
-
-### Step 1 — Create an OAuth Client
-
-In Dynatrace Account Management, create an OAuth client with these scopes:
-
-| Scope | Description |
-|-------|-------------|
-| `account-idm-read` | View users and groups |
-| `account-idm-write` | Manage users and groups |
-| `iam-policies-management` | View and manage policies |
-| `account-env-read` | View environments |
-
-### Step 2 — Set Environment Variables
-
-Create a `.env` file in `outputs/` (add it to `.gitignore`):
-
-```bash
-# Terraform OAuth client
-export DT_CLIENT_ID="dt0s02.XXXX"
-export DT_CLIENT_SECRET="dt0s02.XXXX...."
-export DT_ACCOUNT_ID="your-account-uuid"
-export DYNATRACE_ENV_URL="https://your-env-id.live.dynatrace.com"
-
-# These map directly to Terraform variables — no terraform.tfvars needed
-export TF_VAR_account_id="your-account-uuid"
-export TF_VAR_environment_id="your-env-id"
-```
-
-Then source it:
-```bash
-source outputs/.env
-```
-
-> **Why both `DT_ACCOUNT_ID` and `TF_VAR_account_id`?** The provider uses `DT_*` variables for API authentication. The Terraform input variables (`var.account_id`, `var.environment_id`) are used inside resource definitions and need a separate mechanism — `TF_VAR_*` maps directly to `var.*`.
-
-### Step 3 — Initialize and Apply
+### 3. Apply
 
 ```bash
 cd outputs
+
+# See skills/dt-iam-validation/SKILL.md for full env var reference
+export DT_CLIENT_ID="..."
+export DT_CLIENT_SECRET="..."
+export DT_ACCOUNT_ID="..."
+export DYNATRACE_ENV_URL="https://<env>.live.dynatrace.com"
+export TF_VAR_account_id="$DT_ACCOUNT_ID"
+export TF_VAR_environment_id="<env>"
+
 terraform init
-terraform plan    # Review all changes before applying
+terraform plan
 terraform apply
 ```
 
-### Step 4 — Verify
+### 4. Verify
 
-1. Log into **Dynatrace Account Management**
-2. Navigate to **Identity & Access Management → Groups** to verify groups
-3. Check **Policies** to confirm policy content
-4. Use **Effective Permissions** on a test group to validate scoping
-5. Test with a real user account — `terraform apply` success does not guarantee effective permissions are correct
+Follow the post-apply checks in [`skills/dt-iam-validation/SKILL.md`](skills/dt-iam-validation/SKILL.md): inspect Effective Permissions in Account Management, then run a real-user smoke test via DQL.
 
 ---
 
-## Troubleshooting
+## IAM model (summary)
 
-| Problem | Solution |
-|---------|----------|
-| `terraform init` fails | Ensure internet access and Terraform v1.0+ |
-| Authentication errors | Verify `DT_CLIENT_ID`, `DT_CLIENT_SECRET`, `DT_ACCOUNT_ID` are exported |
-| Variable not set | Ensure `TF_VAR_account_id` and `TF_VAR_environment_id` are exported (see `.env` setup above) |
-| Boundary does not apply | Check namespace — storage conditions use `storage:dt.security_context`, settings use `settings:dt.security_context` |
-| No bucket permissions for table | Default data read policies (`Read Logs`, etc.) must also be bound with boundaries — the WHERE-clause policy alone is insufficient |
-| Policy write permission denied | Verify OAuth client has `iam-policies-management` scope |
-| Group shows only one policy set | You have multiple binding resources for the same group — consolidate into one (Lesson #21) |
+Two levels × two roles → 4 group types. Full details in [skills/dt-iam-generator/references/group-model.md](skills/dt-iam-generator/references/group-model.md).
+
+| Group | Data access | Settings | SLO | OpenPipeline | Anomaly detection |
+|---|---|---|---|---|---|
+| `{bu}-Admins` | scoped to BU | write (scoped) | yes | pipeline write | yes |
+| `{bu}-Users` | scoped to BU | read only | no | read only | yes |
+| `{app}-Admins` | scoped to app | write (scoped) | yes (via SLO Manager) | read only | yes |
+| `{app}-Users` | scoped to app | read only | no | read only | yes |
+
+Enforcement field: `dt.security_context = {bu}-{stage}-{application}-{component}` (lowercase).
+
+---
+
+## Critical rules (don't skip)
+
+Each rule links to the relevant skill reference:
+
+1. Never bind **Admin User** on scoped groups — see [policy-authoring gotchas #16](skills/dt-iam-policy-authoring/references/gotchas.md).
+2. **One** `dynatrace_iam_policy_bindings_v2` resource per group — see [bindings gotchas #21](skills/dt-iam-bindings/references/gotchas.md).
+3. Default data read policies must be bound with boundaries — see [bindings gotchas #19](skills/dt-iam-bindings/references/gotchas.md).
+4. Feature permissions are tenant-wide — see [policy-authoring gotchas #20](skills/dt-iam-policy-authoring/references/gotchas.md).
+5. All identifiers lowercase — see [validation gotchas #18](skills/dt-iam-validation/references/gotchas.md).
 
 ---
 
 ## References
 
-- [Dynatrace IAM Documentation](https://docs.dynatrace.com/docs/manage/identity-access-management)
-- [Default Policies](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/default-policies) — review before creating custom policies
-- [IAM Policy Reference](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/iam-policy-reference) — valid permissions and conditions
-- [Policy Statement Syntax](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/manage-user-permissions-policies/iam-policystatement-syntax)
-- [Policy Boundaries](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/manage-user-permissions-policies/iam-policy-boundaries)
-- [Settings 2.0 — Available Schemas](https://docs.dynatrace.com/docs/dynatrace-api/environment-api/settings/schemas) — for `settings:schemaId` conditions
+- [Dynatrace for AI](https://github.com/Dynatrace/dynatrace-for-ai) — official skills, prompts, MCP server
+- [Default Policies](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/default-policies)
+- [IAM Policy Reference](https://docs.dynatrace.com/docs/manage/identity-access-management/permission-management/iam-policy-reference)
+- [Settings 2.0 Schemas](https://docs.dynatrace.com/docs/dynatrace-api/environment-api/settings/schemas)
 - [Dynatrace Terraform Provider](https://registry.terraform.io/providers/dynatrace-oss/dynatrace/latest/docs)
-
+- [Agent Skills specification](https://agentskills.io/specification)

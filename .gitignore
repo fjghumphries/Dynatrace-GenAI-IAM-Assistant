@@ -1,76 +1,17 @@
-# ============================================================================
-# Dynatrace IAM Generator - gitignore
-# ============================================================================
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/terraform.tfvars
+**/.env
+**/tfplan
 
-# Old/backup specification files
-instructions.older_version
-
-# Secrets and credentials
-.env
-.env.*
-*.env
-outputs/.env
-outputs/**/.env
-sample-outputs/**/.env
-sample-outputs/.env
-
-# Generated Terraform configurations (user-specific)
-outputs/
-
-# Terraform state and local files
-**/.terraform/*
-*.tfstate
-*.tfstate.*
-*.tfstate.backup
-.terraform.lock.hcl
-
-# Terraform variable files (may contain sensitive data)
-*.tfvars
-*.tfvars.json
-!terraform.tfvars.example
-
-# Crash logs
-crash.log
-crash.*.log
-
-# Override files (local customizations)
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-
-# Terraform CLI configuration
-.terraformrc
-terraform.rc
-
-# macOS
+# OS
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Linux
-*~
-
-# IDE and editor files
-.idea/
-.vscode/
 *.swp
-*.swo
-*.bak
-*~
 
-# Python (if used for scripting)
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-venv/
-env/
-
-# Logs
-*.log
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json

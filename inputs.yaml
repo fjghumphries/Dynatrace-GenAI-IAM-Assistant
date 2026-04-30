@@ -1,0 +1,92 @@
+# ============================================================================
+# Dynatrace GenAI IAM Assistant — Customer Input
+# ============================================================================
+#  >>> THIS IS THE ONLY FILE YOU NEED TO EDIT. <<<
+#
+#  Quick start (in any AI agent — Copilot Chat, Claude Code, Cursor, ...):
+#    /init-inputs    → wizard to populate this file from scratch
+#    /generate-iam   → produce all Terraform under outputs/
+#    /add-bu         → add a new Business Unit (one-shot)
+#    /add-app        → add a new application to an existing BU
+#    /add-policy     → add a new custom/templated/default policy
+#    /add-role       → add a new role (group + binding) at BU or app level
+#    /validate-iam   → sanity-check the generated outputs/
+#    /apply-iam      → guided OAuth setup, terraform init/plan/apply, verify
+#
+#  All knowledge lives in skills/ — agents load only what they need.
+#
+#  Rules:
+#    - All names lowercase (Grail bucket names require it).
+#    - Each application belongs to EXACTLY ONE business unit.
+#    - If two BUs need an app with the same logical name, give them unique IDs
+#      (e.g. platform-api, payments-api).
+#    - Stages list applies to every application.
+# ============================================================================
+
+business_units:
+  bu1:
+    description: "Business Unit 1"
+    applications:
+      - petclinic01
+  bu2:
+    description: "Business Unit 2"
+    applications:
+      - petclinic02
+  bu3:
+    description: "Business Unit 3 for Testing"
+    applications:
+      - petclinic03
+
+stages:
+  - prod
+  - dev
+
+# Security context format (informational — derived from the values above):
+#   dt.security_context = {bu}-{stage}-{application}-{component}
+#
+# Examples for the input above:
+#   bu1-prod-petclinic01-api
+#   bu2-dev-petclinic02-web
+
+# ============================================================================
+# OPTIONAL: custom policies and roles
+# ============================================================================
+# Most customers DO NOT need to touch this section. The generator ships a
+# default catalog of 14 policies and 4 roles in:
+#   skills/dt-iam-generator/references/defaults.yaml
+#
+# Use the blocks below to ADD or OVERRIDE policies/roles. Entries are merged
+# with the defaults BY NAME (customer wins).
+#
+# Schema reference: skills/dt-iam-generator/references/group-model.md
+# ----------------------------------------------------------------------------
+#
+# Example — add a Security Auditor role bound at the BU level using a new
+# custom policy. Uncomment to enable.
+#
+# policies:
+#   - name: security_auditor_read
+#     type: custom
+#     display_name: "Security Auditor Read"
+#     description: "Read-only access for compliance auditors."
+#     statements: |
+#       ALLOW storage:logs:read, storage:events:read, storage:bizevents:read;
+#       ALLOW iam:policies:read, iam:bindings:read;
+#       ALLOW settings:objects:read;
+#
+# roles:
+#   bu:
+#     auditors:
+#       description: "Compliance auditors with read-only access"
+#       policies:
+#         - { name: standard_user }
+#         - { name: read_system_events }
+#         - { name: security_auditor_read, boundary: bu_data }
+#
+# After uncommenting, run /generate-iam (or /update-iam) to regenerate
+# outputs/. To remove a default role entirely, set it to null:
+#
+# roles:
+#   bu:
+#     users: null
+# ============================================================================

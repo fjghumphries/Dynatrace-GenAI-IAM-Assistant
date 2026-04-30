@@ -1,0 +1,201 @@
+# ============================================================================
+# Default Policy + Role Catalog
+# ============================================================================
+# Loaded by the dt-iam-generator skill when inputs.yaml omits `policies:` or
+# `roles:`. Customers can OVERRIDE any entry by repeating its `name` (for a
+# policy) or `<scope>.<role>` key (for a role) inside inputs.yaml.
+#
+# Customer entries in inputs.yaml are merged on top of this file BY NAME.
+# Anything not redefined comes from this catalog.
+#
+# Boundary keys recognised by bindings: bu_data, bu_settings, app_data,
+# app_settings (defined statically in outputs/boundaries_main.tf).
+#
+# Param interpolation tokens supported in `params:` values:
+#   {bu}    -> the BU key for this binding's iteration
+#   {app}   -> the application key (only valid in app-level roles)
+# ============================================================================
+
+policies:
+  # --- Default policies (data sources, maintained by Dynatrace) -------------
+  - name: standard_user
+    type: default
+    dynatrace_name: "Standard User"
+
+  - name: read_logs
+    type: default
+    dynatrace_name: "Read Logs"
+
+  - name: read_metrics
+    type: default
+    dynatrace_name: "Read Metrics"
+
+  - name: read_spans
+    type: default
+    dynatrace_name: "Read Spans"
+
+  - name: read_events
+    type: default
+    dynatrace_name: "Read Events"
+
+  - name: read_bizevents
+    type: default
+    dynatrace_name: "Read BizEvents"
+
+  - name: read_entities
+    type: default
+    dynatrace_name: "Read Entities"
+
+  - name: read_system_events
+    type: default
+    dynatrace_name: "Read System Events"
+
+  # --- Templated policies (parameterised, reused across groups) ------------
+  - name: scoped_data_read
+    type: templated
+    display_name: "Scoped Grail Data Read"
+    description: "Record-level filtering by security_context prefix."
+    statements: |
+      ALLOW storage:logs:read
+        WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
+      ALLOW storage:metrics:read
+        WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
+      ALLOW storage:spans:read
+        WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
+      ALLOW storage:events:read
+        WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
+      ALLOW storage:bizevents:read
+        WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
+      ALLOW storage:entities:read
+        WHERE storage:dt.security_context startsWith "${bindParam:security_context_prefix}";
+
+  - name: scoped_settings_write
+    type: templated
+    display_name: "Scoped Settings Write"
+    description: "Settings write scoped by security_context. For admins only."
+    statements: |
+      ALLOW settings:objects:read, settings:objects:write
+        WHERE settings:dt.security_context startsWith "${bindParam:security_context_prefix}";
+      ALLOW settings:schemas:read;
+
+  # --- Custom policies (literal statements) --------------------------------
+  - name: admin_features
+    type: custom
+    display_name: "Admin Features (No Settings Write)"
+    description: "Admin feature access without settings write. Use with Scoped Settings Write for bounded settings."
+    statements: |
+      ALLOW automation:workflows:read, automation:workflows:write, automation:workflows:run, automation:workflows:admin;
+      ALLOW automation:calendars:read, automation:calendars:write;
+      ALLOW automation:rules:read, automation:rules:write;
+      ALLOW slo:slos:read, slo:slos:write;
+      ALLOW slo:objective-templates:read;
+      ALLOW extensions:definitions:read, extensions:definitions:write;
+      ALLOW extensions:configurations:read, extensions:configurations:write;
+      ALLOW app-engine:apps:install, app-engine:apps:delete, app-engine:apps:run;
+
+  - name: anomaly_detection_write
+    type: custom
+    display_name: "Anomaly Detection Write"
+    description: "Settings write for anomaly detection schemas. For all users."
+    statements: |
+      ALLOW settings:objects:write
+        WHERE settings:schemaGroup = "group:anomaly-detection";
+
+  - name: openpipeline_management
+    type: custom
+    display_name: "OpenPipeline Management"
+    description: "Settings write for OpenPipeline pipeline configurations. Routing and pipeline-group write intentionally excluded."
+    statements: |
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.bizevents.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.davis.events.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.davis.problems.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.events.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.events.sdlc.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.events.security.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.logs.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.metrics.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.security.events.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.spans.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.system.events.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.user.events.pipelines";
+      ALLOW settings:objects:write WHERE settings:schemaId = "builtin:openpipeline.usersessions.pipelines";
+
+  - name: slo_manager
+    type: custom
+    display_name: "SLO Manager"
+    description: "SLO read/write for application admins."
+    statements: |
+      ALLOW slo:slos:read, slo:slos:write;
+      ALLOW slo:objective-templates:read;
+
+# ============================================================================
+# Roles — bundles of policies bound to a group
+# ============================================================================
+# Each role becomes ONE dynatrace_iam_policy_bindings_v2 resource per scope
+# instance (one per BU for bu.* roles, one per app for app.* roles).
+#
+# Group name pattern: {bu_or_app}-{Role}  (Title-cased role name)
+# ============================================================================
+
+roles:
+
+  bu:
+    admins:
+      description: "Full data + scoped settings write within the BU"
+      policies:
+        - { name: standard_user }
+        - { name: admin_features }
+        - { name: read_system_events }
+        - { name: anomaly_detection_write }
+        - { name: openpipeline_management }
+        - { name: scoped_data_read,      boundary: bu_data,     params: { security_context_prefix: "{bu}-" } }
+        - { name: read_logs,             boundary: bu_data }
+        - { name: read_metrics,          boundary: bu_data }
+        - { name: read_spans,            boundary: bu_data }
+        - { name: read_events,           boundary: bu_data }
+        - { name: read_bizevents,        boundary: bu_data }
+        - { name: read_entities,         boundary: bu_data }
+        - { name: scoped_settings_write, boundary: bu_settings, params: { security_context_prefix: "{bu}-" } }
+
+    users:
+      description: "Read-only data access within the BU"
+      policies:
+        - { name: standard_user }
+        - { name: read_system_events }
+        - { name: anomaly_detection_write }
+        - { name: scoped_data_read, boundary: bu_data, params: { security_context_prefix: "{bu}-" } }
+        - { name: read_logs,        boundary: bu_data }
+        - { name: read_metrics,     boundary: bu_data }
+        - { name: read_spans,       boundary: bu_data }
+        - { name: read_events,      boundary: bu_data }
+        - { name: read_bizevents,   boundary: bu_data }
+        - { name: read_entities,    boundary: bu_data }
+
+  app:
+    admins:
+      description: "Scoped data + settings write for one application"
+      policies:
+        - { name: standard_user }
+        - { name: slo_manager }
+        - { name: read_system_events }
+        - { name: anomaly_detection_write }
+        - { name: read_logs,             boundary: app_data }
+        - { name: read_metrics,          boundary: app_data }
+        - { name: read_spans,            boundary: app_data }
+        - { name: read_events,           boundary: app_data }
+        - { name: read_bizevents,        boundary: app_data }
+        - { name: read_entities,         boundary: app_data }
+        - { name: scoped_settings_write, boundary: app_settings, params: { security_context_prefix: "{bu}-" } }
+
+    users:
+      description: "Read-only data access for one application"
+      policies:
+        - { name: standard_user }
+        - { name: read_system_events }
+        - { name: anomaly_detection_write }
+        - { name: read_logs,      boundary: app_data }
+        - { name: read_metrics,   boundary: app_data }
+        - { name: read_spans,     boundary: app_data }
+        - { name: read_events,    boundary: app_data }
+        - { name: read_bizevents, boundary: app_data }
+        - { name: read_entities,  boundary: app_data }

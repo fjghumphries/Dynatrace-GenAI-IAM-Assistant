@@ -9,19 +9,19 @@ BINDING ARCHITECTURE
 ================================================================================
 
   Key Design Principles:
-  1. ONE binding resource per group (Lesson #21)
+  1. ONE binding resource per group (gotcha #21)
   2. Storage and settings boundaries CAN coexist in the same resource
   3. BU Admins use Standard User + Admin Features, NOT Admin User
-  4. Default data read policies REQUIRED for bucket access (Lesson #19)
+  4. Default data read policies REQUIRED for bucket access (gotcha #19)
   5. All bindings are environment-level
 
 ================================================================================
   BU ADMIN BINDINGS (2 resources, 13 policy blocks each)
 ================================================================================
 
-  bu_admins["bu1"]
+  bu_admins["bu-platform"]
   ---------------------------------------------------------------------------
-  Group: bu1-Admins
+  Group: bu-platform-Admins
   Environment: var.environment_id
 
   Policy                    | Boundary              | Parameters
@@ -31,24 +31,24 @@ BINDING ARCHITECTURE
   Read System Events        | (none)                | -
   Anomaly Detection Write   | (none)                | -
   OpenPipeline Management   | (none)                | -
-  Scoped Grail Data Read    | bu_data["bu1"]        | prefix = "bu1-"
-  Read Logs                 | bu_data["bu1"]        | -
-  Read Metrics              | bu_data["bu1"]        | -
-  Read Spans                | bu_data["bu1"]        | -
-  Read Events               | bu_data["bu1"]        | -
-  Read BizEvents            | bu_data["bu1"]        | -
-  Read Entities             | bu_data["bu1"]        | -
-  Scoped Settings Write     | bu_settings["bu1"]    | prefix = "bu1-"
+  Scoped Grail Data Read    | bu_data["bu-platform"]        | prefix = "bu-platform-"
+  Read Logs                 | bu_data["bu-platform"]        | -
+  Read Metrics              | bu_data["bu-platform"]        | -
+  Read Spans                | bu_data["bu-platform"]        | -
+  Read Events               | bu_data["bu-platform"]        | -
+  Read BizEvents            | bu_data["bu-platform"]        | -
+  Read Entities             | bu_data["bu-platform"]        | -
+  Scoped Settings Write     | bu_settings["bu-platform"]    | prefix = "bu-platform-"
 
-  bu_admins["bu2"] — same structure with bu2 boundaries
+  bu_admins["bu-payments"] — same structure with bu-payments boundaries
 
 ================================================================================
 BU USER BINDINGS (2 resources, 10 policy blocks each)
 ================================================================================
 
-  bu_users["bu1"]
+  bu_users["bu-platform"]
   ---------------------------------------------------------------------------
-  Group: bu1-Users
+  Group: bu-platform-Users
   Environment: var.environment_id
 
   Policy                    | Boundary              | Parameters
@@ -56,23 +56,23 @@ BU USER BINDINGS (2 resources, 10 policy blocks each)
   Standard User             | (none)                | -
   Read System Events        | (none)                | -
   Anomaly Detection Write   | (none)                | -
-  Scoped Grail Data Read    | bu_data["bu1"]        | prefix = "bu1-"
-  Read Logs                 | bu_data["bu1"]        | -
-  Read Metrics              | bu_data["bu1"]        | -
-  Read Spans                | bu_data["bu1"]        | -
-  Read Events               | bu_data["bu1"]        | -
-  Read BizEvents            | bu_data["bu1"]        | -
-  Read Entities             | bu_data["bu1"]        | -
+  Scoped Grail Data Read    | bu_data["bu-platform"]        | prefix = "bu-platform-"
+  Read Logs                 | bu_data["bu-platform"]        | -
+  Read Metrics              | bu_data["bu-platform"]        | -
+  Read Spans                | bu_data["bu-platform"]        | -
+  Read Events               | bu_data["bu-platform"]        | -
+  Read BizEvents            | bu_data["bu-platform"]        | -
+  Read Entities             | bu_data["bu-platform"]        | -
 
-  bu_users["bu2"] — same structure with bu2 boundaries
+  bu_users["bu-payments"] — same structure with bu-payments boundaries
 
 ================================================================================
 APPLICATION ADMIN BINDINGS (2 resources, 11 policy blocks each)
 ================================================================================
 
-  app_admins["petclinic01"]
+  app_admins["app-alpha"]
   ---------------------------------------------------------------------------
-  Group: petclinic01-Admins
+  Group: app-alpha-Admins
   Environment: var.environment_id
 
   Policy                    | Boundary                  | Parameters
@@ -81,26 +81,26 @@ APPLICATION ADMIN BINDINGS (2 resources, 11 policy blocks each)
   SLO Manager               | (none)                    | -
   Read System Events        | (none)                    | -
   Anomaly Detection Write   | (none)                    | -
-  Read Logs                 | app_data["petclinic01"]   | -
-  Read Metrics              | app_data["petclinic01"]   | -
-  Read Spans                | app_data["petclinic01"]   | -
-  Read Events               | app_data["petclinic01"]   | -
-  Read BizEvents            | app_data["petclinic01"]   | -
-  Read Entities             | app_data["petclinic01"]   | -
-  Scoped Settings Write     | app_settings["petclinic01"] | prefix = "bu1-"
+  Read Logs                 | app_data["app-alpha"]   | -
+  Read Metrics              | app_data["app-alpha"]   | -
+  Read Spans                | app_data["app-alpha"]   | -
+  Read Events               | app_data["app-alpha"]   | -
+  Read BizEvents            | app_data["app-alpha"]   | -
+  Read Entities             | app_data["app-alpha"]   | -
+  Scoped Settings Write     | app_settings["app-alpha"] | prefix = "bu-platform-"
 
   NOTE: Scoped Settings Write uses BU prefix in WHERE clause; the
   app_settings boundary narrows effective scope to this app only.
 
-  app_admins["petclinic02"] — same structure with petclinic02/bu2 boundaries
+  app_admins["app-beta"] — same structure with app-beta/bu-payments boundaries
 
 ================================================================================
 APPLICATION USER BINDINGS (2 resources, 9 policy blocks each)
 ================================================================================
 
-  app_users["petclinic01"]
+  app_users["app-alpha"]
   ---------------------------------------------------------------------------
-  Group: petclinic01-Users
+  Group: app-alpha-Users
   Environment: var.environment_id
 
   Policy                    | Boundary                  | Parameters
@@ -108,14 +108,14 @@ APPLICATION USER BINDINGS (2 resources, 9 policy blocks each)
   Standard User             | (none)                    | -
   Read System Events        | (none)                    | -
   Anomaly Detection Write   | (none)                    | -
-  Read Logs                 | app_data["petclinic01"]   | -
-  Read Metrics              | app_data["petclinic01"]   | -
-  Read Spans                | app_data["petclinic01"]   | -
-  Read Events               | app_data["petclinic01"]   | -
-  Read BizEvents            | app_data["petclinic01"]   | -
-  Read Entities             | app_data["petclinic01"]   | -
+  Read Logs                 | app_data["app-alpha"]   | -
+  Read Metrics              | app_data["app-alpha"]   | -
+  Read Spans                | app_data["app-alpha"]   | -
+  Read Events               | app_data["app-alpha"]   | -
+  Read BizEvents            | app_data["app-alpha"]   | -
+  Read Entities             | app_data["app-alpha"]   | -
 
-  app_users["petclinic02"] — same structure with petclinic02 boundaries
+  app_users["app-beta"] — same structure with app-beta boundaries
 
 ================================================================================
 TOTALS

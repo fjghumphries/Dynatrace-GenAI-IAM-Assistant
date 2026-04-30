@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars and fill in values.
+# Or set DT_ACCOUNT_ID env var and pass environment_id.
+
+account_id     = "your-account-uuid-here"
+environment_id = "your-environment-id-here"

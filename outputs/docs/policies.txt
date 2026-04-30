@@ -1,8 +1,8 @@
 ================================================================================
 DYNATRACE IAM POLICIES REFERENCE
 ================================================================================
-Generated: 2026-03-13
-Configuration: 2 BUs, 2 Applications, 2 Stages
+Generated: 2026-04-30
+Configuration: 3 BUs, 3 Applications, 2 Stages
 
 ================================================================================
 DEFAULT POLICIES (Data Sources — 8)
