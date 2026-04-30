@@ -126,16 +126,66 @@ Inspect Effective Permissions in Account Management, then run a real-user smoke 
 
 ## IAM model
 
-Two levels × two roles → 4 group types per Business Unit / application. Full details in [`skills/dt-iam-generator/references/group-model.md`](skills/dt-iam-generator/references/group-model.md).
+The generator builds permissions around two organisational concepts:
+
+- **Business Unit (BU)** — a top-level owner of one or more applications (e.g. `bu-platform`, `bu-payments`). BU groups can see and manage everything the BU owns, across all applications and stages.
+- **Application (app)** — a deployable system owned by exactly one BU, present in every stage (e.g. `app-alpha` running in `prod` and `dev`). App groups are scoped to a single application across all its stages.
+
+For every BU and every application the generator produces **two groups**: `Admins` (read + scoped write) and `Users` (read-only). That gives **4 group types per app** plus **2 per BU**.
 
 | Group | Data access | Settings | SLO | OpenPipeline | Anomaly detection |
 |---|---|---|---|---|---|
-| `{bu}-Admins` | scoped to BU | write (scoped) | yes | pipeline write | yes |
-| `{bu}-Users` | scoped to BU | read only | no | read only | yes |
-| `{app}-Admins` | scoped to app | write (scoped) | yes (via SLO Manager) | read only | yes |
-| `{app}-Users` | scoped to app | read only | no | read only | yes |
+| `{bu}-Admins` | all data tagged with this BU | write (scoped) | yes | pipeline write | yes |
+| `{bu}-Users` | all data tagged with this BU | read only | no | read only | yes |
+| `{app}-Admins` | only this application's data | write (scoped) | yes (via SLO Manager) | read only | yes |
+| `{app}-Users` | only this application's data | read only | no | read only | yes |
 
-Enforcement field: `dt.security_context = {bu}-{stage}-{application}-{component}` (lowercase).
+Full details: [`skills/dt-iam-generator/references/group-model.md`](skills/dt-iam-generator/references/group-model.md).
+
+### How scoping works — `dt.security_context`
+
+Every IAM policy filters Grail records using the `dt.security_context` field, formatted as:
+
+```
+{bu}-{stage}-{application}-{component}
+```
+
+Examples produced by the sample input above:
+
+```
+bu-platform-prod-app-alpha-api
+bu-payments-dev-app-beta-web
+```
+
+For this to work, **every host (and the data it produces) must carry `dt.security_context` as a host property**, set on the OneAgent itself — not derived from tags or OpenPipeline rules (any pipeline gap leaves data unscoped and unrecoverable).
+
+Example OneAgent configuration:
+
+```bash
+sudo /opt/dynatrace/oneagent/agent/tools/oneagentctl \
+  --restart-service \
+  --set-host-group=bu-platform-app-alpha \
+  --set-host-property="dt.security_context=bu-platform-prod-app-alpha" \
+  --set-host-property="primary_tags.bu=bu-platform" \
+  --set-host-property="primary_tags.stage=prod" \
+  --set-host-property="primary_tags.application=app-alpha"
+```
+
+Notes:
+- All values **lowercase** (Grail bucket naming requirement).
+- `--restart-service` is required — without it OneAgent silently ignores the change.
+- `primary_tags.*` are useful for DQL filters and segments, but **cannot** be referenced in IAM policies. Only `dt.security_context` enforces access.
+
+Verify enrichment with DQL:
+
+```dql
+fetch dt.entity.host
+| fields entity.name, dt.security_context
+| filter isNull(dt.security_context)
+| limit 20
+```
+
+Any row returned is a host whose data cannot be scoped by IAM — fix the OneAgent configuration before relying on the generated groups. Full guidance: [`skills/dt-iam-generator/references/security-context-enrichment.md`](skills/dt-iam-generator/references/security-context-enrichment.md).
 
 ## Repository layout
 
