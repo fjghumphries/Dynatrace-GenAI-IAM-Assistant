@@ -59,6 +59,8 @@ Wizard sources live in [`.github/prompts/`](.github/prompts/).
 
 ## Manual flow (no wizards)
 
+> Most users should run `/init-inputs` then `/generate-iam` instead. The steps below are for users without an AI agent, or for understanding what the wizards do under the hood.
+
 ### 1. Edit `inputs.yaml`
 
 ```yaml
@@ -85,16 +87,32 @@ The agent loads `dt-iam-generator`, parses `inputs.yaml`, mirrors the structure 
 
 ### 3. Apply
 
-```bash
-cd outputs
+Create `outputs/.env` (already gitignored) with your tenant credentials:
 
+```bash
+# outputs/.env
 export DT_CLIENT_ID="..."
 export DT_CLIENT_SECRET="..."
 export DT_ACCOUNT_ID="..."
 export DYNATRACE_ENV_URL="https://<env>.live.dynatrace.com"
 export TF_VAR_account_id="$DT_ACCOUNT_ID"
 export TF_VAR_environment_id="<env>"
+```
 
+Where to find each value:
+
+| Variable | Where to get it |
+|---|---|
+| `DT_CLIENT_ID`, `DT_CLIENT_SECRET` | Account Management → Identity & Access → OAuth clients → *Create client* (scopes: `iam-policies-management`, `account-idm-read`, `account-idm-write`) |
+| `DT_ACCOUNT_ID` | Account Management → Account info (UUID) |
+| `DYNATRACE_ENV_URL` | Your tenant URL, e.g. `https://abc12345.live.dynatrace.com` |
+| `<env>` (in `TF_VAR_environment_id`) | Tenant ID portion of the URL, e.g. `abc12345` |
+
+Then apply:
+
+```bash
+cd outputs
+source .env
 terraform init
 terraform plan
 terraform apply
