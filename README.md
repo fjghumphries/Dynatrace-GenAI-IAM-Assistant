@@ -1,11 +1,33 @@
 # Dynatrace GenAI IAM Assistant
 
+[![Terraform](https://img.shields.io/badge/Terraform-1.0%2B-7B42BC?logo=terraform)](https://developer.hashicorp.com/terraform/install)
+[![Dynatrace Provider](https://img.shields.io/badge/dynatrace--oss%2Fdynatrace-~%3E%201.91-1496FF?logo=dynatrace)](https://registry.terraform.io/providers/dynatrace-oss/dynatrace/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 > [!WARNING]
 > **Experimental.** Generated Terraform is a starting point, not production-ready output. Always run `terraform plan` and verify effective permissions in a non-production tenant before applying.
 
-Generate Terraform-managed IAM configurations for Dynatrace Grail (3rd Gen) using any AI coding agent (GitHub Copilot, Claude Code, Cursor, OpenCode, Gemini CLI, …). Knowledge is packaged as portable [Agent Skills](https://agentskills.io/) under [`skills/`](skills/), so the same workflow runs across editors.
+Generate Terraform-managed IAM configurations for **Dynatrace Grail (3rd Gen)** using any AI coding agent (GitHub Copilot, Claude Code, Cursor, OpenCode, Gemini CLI, …). Knowledge is packaged as portable [Agent Skills](https://agentskills.io/) under [`skills/`](skills/), so the same workflow runs across editors.
 
 You fill in your Business Units, applications, and stages in [`inputs.yaml`](inputs.yaml) — the agent loads the relevant skills and writes a complete Terraform configuration into [`outputs/`](outputs/).
+
+## TL;DR
+
+```bash
+git clone https://github.com/fjghumphries/GenAI-IAM-Generation.git
+cd GenAI-IAM-Generation
+code .                       # open in VS Code (with GitHub Copilot)
+```
+
+Then, in Copilot Chat (or any agent that supports slash prompts):
+
+```
+/init-inputs       # interactive interview → fills inputs.yaml
+/generate-iam      # writes complete Terraform to outputs/
+/apply-iam         # guided OAuth + terraform init/plan/apply + verify
+```
+
+That's the entire workflow. The wizard chains automatically suggest the next step.
 
 ---
 
@@ -91,8 +113,12 @@ The whole workflow is driven by **slash-command wizards** in your AI chat (Copil
 | `/update-iam` | Re-generate after editing `inputs.yaml` directly |
 | `/add-bu` | Add a new Business Unit (and its apps) in one shot |
 | `/add-app` | Add a new application to an existing BU |
+| `/add-policy` | Add a new custom, templated, or default policy |
+| `/add-role` | Add a new role (group + binding) at BU or app level |
 | `/validate-iam` | Pre-apply sanity checks |
 | `/apply-iam` | Guided OAuth client setup → env vars → init/plan/apply → verification |
+
+Wizards are token-economical: they batch all questions into a single prompt and chain into the next logical step automatically. Sources live in [`.github/prompts/`](.github/prompts/).
 
 ### Manual flow (no wizards)
 
@@ -178,6 +204,22 @@ Each rule links to the relevant skill reference:
 5. All identifiers lowercase — see [validation gotchas #18](skills/dt-iam-validation/references/gotchas.md).
 
 ---
+
+## Extending — adding your own policies and roles
+
+The generator ships a default catalog (14 policies, 4 roles) in [`skills/dt-iam-generator/references/defaults.yaml`](skills/dt-iam-generator/references/defaults.yaml). Customers add or override entries directly in `inputs.yaml` under optional `policies:` and `roles:` blocks — entries merge with defaults **by name** (customer wins).
+
+See the commented examples at the bottom of [`inputs.yaml`](inputs.yaml), or run `/add-policy` / `/add-role` for guided edits. Schema details: [skills/dt-iam-generator/references/group-model.md](skills/dt-iam-generator/references/group-model.md).
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. When adding a new lesson learned, append it to the relevant `skills/<skill>/references/gotchas.md` rather than creating a top-level summary file — that keeps knowledge close to the skill that needs it.
+
+## License
+
+[MIT](LICENSE)
 
 ## References
 
