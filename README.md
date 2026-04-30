@@ -52,10 +52,27 @@ npx skills add dynatrace/dynatrace-for-ai
 | `/add-app` | Add a new application to an existing BU |
 | `/add-policy` | Add a custom, templated, or default policy |
 | `/add-role` | Add a new role (group + binding) at BU or app level |
+| `/remove-bu` | Remove a Business Unit and all its apps (destructive — confirms first) |
+| `/remove-app` | Remove an application from a BU (destructive — confirms first) |
 | `/validate-iam` | Pre-apply sanity checks |
 | `/apply-iam` | Guided OAuth setup → init/plan/apply → verification |
 
 Wizard sources live in [`.github/prompts/`](.github/prompts/).
+
+### Modifying or removing things
+
+There are no `/modify-*` wizards — modification is intentionally just **edit `inputs.yaml`** then `/update-iam`. Common changes:
+
+| Change | How |
+|---|---|
+| Rename a BU or app | Edit the key in `inputs.yaml`, run `/update-iam`. Terraform will destroy the old groups + create new ones — re-add SSO mappings afterwards. |
+| Add or remove a stage | Edit the `stages:` list in `inputs.yaml`, run `/update-iam`. |
+| Change a BU description | Edit the `description:` field, run `/update-iam`. |
+| Customise a default policy or role | Add a `policies:` or `roles:` block to `inputs.yaml` with the same `name:` — customer wins (see [Extending](#extending)). Or run `/add-policy` / `/add-role`. |
+| Remove a custom policy or role | Delete the entry from `inputs.yaml` (or set the role to `null` to suppress a default), run `/update-iam`. |
+| Remove a BU or app | Use `/remove-bu` or `/remove-app` — they include a destruction warning. |
+
+Always run `/validate-iam` and review `terraform plan` before `terraform apply` — destruction of groups and bindings cannot be undone without re-creating them and re-attaching SSO mappings.
 
 ## Manual flow (no wizards)
 

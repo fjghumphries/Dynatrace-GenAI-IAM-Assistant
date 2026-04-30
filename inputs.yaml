@@ -10,6 +10,8 @@
 #    /add-app        → add a new application to an existing BU
 #    /add-policy     → add a new custom/templated/default policy
 #    /add-role       → add a new role (group + binding) at BU or app level
+#    /remove-bu      → remove a BU + its apps (destructive, confirms first)
+#    /remove-app     → remove an app from a BU (destructive, confirms first)
 #    /validate-iam   → sanity-check the generated outputs/
 #    /apply-iam      → guided OAuth setup, terraform init/plan/apply, verify
 #
